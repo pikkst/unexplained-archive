@@ -290,7 +290,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router>
+        <Router basename="/unexplained-archive/">
           <AppContent />
         </Router>
       </AuthProvider>
