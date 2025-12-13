@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check, X, Sparkles, Zap, Crown, Users, TrendingUp } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { subscriptionService, type SubscriptionPlan } from '../services/investigatorSubscriptionService';
 import { walletService } from '../services/walletService';
 
 export const InvestigatorSubscriptionPlans: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +48,7 @@ export const InvestigatorSubscriptionPlans: React.FC = () => {
         const result = await subscriptionService.subscribeWithWallet(user.id, plan.plan_code, billingCycle);
         if (result.success) {
           alert('Subscription activated instantly!');
-          window.location.reload();
+          navigate('/subscription', { replace: true });
         } else {
           alert(result.error || 'Failed to subscribe');
         }

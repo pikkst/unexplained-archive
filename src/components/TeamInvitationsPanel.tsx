@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, Check, X, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 import { 
   TeamInvitation, 
@@ -16,6 +17,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 
 export const TeamInvitationsPanel: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export const TeamInvitationsPanel: React.FC = () => {
       if (result.success) {
         alert('You have joined the team! Redirecting to case...');
         // Redirect to case detail page
-        window.location.href = `/cases/${result.case_id}`;
+        navigate(`/cases/${result.case_id}`, { replace: true });
       } else {
         alert(result.error || 'Failed to accept invitation');
       }

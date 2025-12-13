@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { X, Mail, Lock, User, AlertCircle } from 'lucide-react';
 
@@ -9,6 +10,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,6 +41,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
           }
         } else {
           onClose();
+          // Navigate to dashboard after successful login
+          navigate('/profile', { replace: true });
         }
       } else {
         if (!username.trim()) {
