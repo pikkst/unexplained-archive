@@ -285,7 +285,161 @@ const trendData = getCategoryTrendsByMonth(); // X: months, Y: case count
 
 ---
 
-### [ ] 13. Evidence Upvoting System
+### [ ] 14b. User-Created Polls System (MONETIZATION)
+**Time:** 200 min  
+**Priority:** HIGH  
+**Location:** PollCreationForm.tsx, PollsPage.tsx, AdminDashboard.tsx
+
+**Feature:** Users pay to create surveys/polls with dedicated public page
+
+**Architecture:**
+1. **Landing Page** - Featured section: Top 3-5 paid polls (trending/newest)
+2. **Polls Page** - Dedicated `/polls` route showing all polls (public, guests welcome)
+3. **Poll Detail** - Individual poll voting interface
+4. **Admin Panel** - Moderation and approval queue
+
+**Cost Structure:**
+- 1€ = 3-day poll
+- 5€ = 7-day poll
+- 10€ = 14-day poll  
+- 15€ = 30-day poll
+- Max 50 active polls simultaneously
+- Payment via Stripe wallet or card
+
+**Database Schema:**
+```sql
+-- Polls table
+CREATE TABLE user_polls (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  creator_id UUID REFERENCES auth.users(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT, -- 'general', 'case_related', 'theory'
+  cost_eur DECIMAL(5,2),
+  duration_days INT, -- 3, 7, 14, 30
+  created_at TIMESTAMPTZ DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  status TEXT, -- 'pending_approval', 'active', 'closed'
+  total_votes INT DEFAULT 0,
+  is_featured BOOLEAN DEFAULT FALSE -- Show on landing page
+);
+
+-- Poll options
+CREATE TABLE poll_options (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  poll_id UUID REFERENCES user_polls(id) ON DELETE CASCADE,
+  option_text TEXT NOT NULL,
+  vote_count INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- User votes (one vote per user per poll)
+CREATE TABLE poll_votes (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  poll_id UUID REFERENCES user_polls(id),
+  option_id UUID REFERENCES poll_options(id),
+  user_id UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(poll_id, user_id)
+);
+
+-- Track poll creator earnings
+CREATE TABLE poll_earnings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  poll_id UUID REFERENCES user_polls(id),
+  creator_id UUID REFERENCES auth.users(id),
+  amount_eur DECIMAL(5,2),
+  earned_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+**UI Components:**
+- `PollCreationForm.tsx` - Create with cost selection
+- `PollsPage.tsx` - Public polls directory (public route, guest accessible)
+- `PollList.tsx` - Landing page featured section (3-5 top polls)
+- `PollDetail.tsx` - Vote on poll and see live results  
+- `AdminPollApproval.tsx` - Admin moderation queue
+- `UserPollsDashboard.tsx` - Creator earnings dashboard
+
+**Landing Page Update:**
+```typescript
+// LandingPage.tsx: Featured Polls Section
+<section className="featured-polls">
+  <h2>Active Polls</h2>
+  <p>See what the community thinks</p>
+  {topPolls.slice(0, 5).map(poll => (
+    <div className="poll-card">
+      <h3>{poll.title}</h3>
+      <p>{poll.total_votes} votes • {poll.days_remaining} days left</p>
+      <div className="poll-preview">
+        {poll.options.slice(0, 2).map(opt => (
+          <div className="option">
+            <span>{opt.percentage}%</span> {opt.text}
+          </div>
+        ))}
+      </div>
+      <Link to={`/polls/${poll.id}`}>View Full Poll →</Link>
+    </div>
+  ))}
+  <Link to="/polls" className="view-all">View All Polls →</Link>
+</section>
+```
+
+**Polls Page Route:**
+```typescript
+// routes.tsx
+{
+  path: '/polls',
+  element: <PollsPage /> // Public route, guests welcome
+}
+
+// PollsPage.tsx
+<div className="polls-container">
+  <h1>Community Polls</h1>
+  <div className="filters">
+    <input type="search" placeholder="Search polls..." />
+    <select>
+      <option>All Categories</option>
+      <option>Case Related</option>
+      <option>General</option>
+      <option>Theory</option>
+    </select>
+    <select>
+      <option>Most Recent</option>
+      <option>Most Voted</option>
+      <option>Trending</option>
+    </select>
+  </div>
+  
+  <div className="polls-grid">
+    {allPolls.map(poll => (
+      <PollCard poll={poll} key={poll.id} />
+    ))}
+  </div>
+</div>
+```
+
+**Revenue Model:**
+- Creator gets 70% (0.70€ from 1€ poll)
+- Platform gets 30% (monetization revenue)
+- Payments processed via Stripe
+
+**Admin Moderation:**
+- Approve/reject polls before going live
+- Prevent spam, nonsensical, or inappropriate polls
+- Can close polls early if problematic
+- View approval history
+
+**Gamification:**
+- Badge: "Poll Creator" (created first poll)
+- Badge: "Influencer" (poll got 100+ votes)
+- Badge: "Voice of the Community" (poll got 500+ votes)
+- Reputation boost for creating popular polls
+- Points earned when poll is created
+
+---
+
+### [ ] 15. Evidence Upvoting System
 **Time:** 120 min  
 **Location:** CaseDetail.tsx, CaseComments.tsx
 
@@ -315,7 +469,7 @@ const sortedComments = comments.sort((a, b) => (b.likes || 0) - (a.likes || 0));
 
 ---
 
-### [ ] 14. Community Voting/Theories
+### [ ] 16. Community Voting/Theories
 **Time:** 180 min  
 **Location:** CaseDetail.tsx - new "Theories" tab
 
@@ -371,7 +525,7 @@ CREATE TABLE theory_votes (
 
 ---
 
-### [ ] 15. Investigator Team Analytics
+### [ ] 17. Investigator Team Analytics
 **Time:** 90 min  
 **Location:** InvestigatorDashboard.tsx
 
@@ -404,31 +558,109 @@ CREATE TABLE theory_votes (
 
 ## PHASE 4: POLISH & OPTIMIZATION (3-4 weeks)
 
-### [ ] 16. Case Investigation Templates
-**Time:** 120 min  
-**Location:** SubmitCaseForm.tsx, CaseFolder.tsx
+### [ ] 17. Case Submission Templates (USER Feature)
+**Time:** 90 min  
+**Location:** SubmitCaseForm.tsx
+
+```sql
+-- Create table
+CREATE TABLE case_templates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  category TEXT,
+  description TEXT,
+  form_fields JSONB, -- Pre-filled fields
+  created_by UUID REFERENCES auth.users(id),
+  is_public BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+```typescript
+// SubmitCaseForm.tsx: Add template selector
+<div className="template-selector">
+  <label>Start from template (optional)</label>
+  <select onChange={(e) => loadTemplate(e.target.value)}>
+    <option value="">Create from scratch</option>
+    <option value="ufo">UFO Sighting Checklist</option>
+    <option value="cryptid">Cryptid Encounter Guide</option>
+    <option value="paranormal">Paranormal Activity Report</option>
+    <option value="supernatural">Supernatural Event Form</option>
+  </select>
+</div>
+
+// When selected, pre-fill form fields with template guidance
+// Help users provide complete, structured information
+```
 
 ---
 
-### [ ] 17. Bulk Admin Operations
+### [ ] 18. Investigation Procedure Templates (INVESTIGATOR Feature)
+**Time:** 90 min  
+**Location:** CaseFolder.tsx
+
+```sql
+-- Create table
+CREATE TABLE investigation_procedures (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  category TEXT,
+  step_order INTEGER,
+  description TEXT,
+  required_evidence TEXT[],
+  checklist_items JSONB,
+  created_by UUID REFERENCES auth.users(id),
+  is_public BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+```typescript
+// CaseFolder.tsx: Add procedure guide sidebar
+<div className="investigation-procedure">
+  <h4>Investigation Procedure</h4>
+  <select onChange={(e) => loadProcedure(e.target.value)}>
+    <option value="">No procedure</option>
+    <option value="standard-ufo">Standard UFO Investigation</option>
+    <option value="cryptid-hunt">Cryptid Investigation Protocol</option>
+    <option value="paranormal-check">Paranormal Evidence Collection</option>
+  </select>
+  
+  {procedure && (
+    <div className="procedure-steps">
+      {procedure.checklist_items.map((item, i) => (
+        <div key={i} className="step">
+          <input type="checkbox" />
+          <p>{item.description}</p>
+          <small>Required: {item.required_evidence.join(', ')}</small>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
+```
+
+---
+
+### [ ] 19. Bulk Admin Operations
 **Time:** 150 min  
 **Location:** AdminDashboard.tsx
 
 ---
 
-### [ ] 18. User Behavior Timeline (Admin)
+### [ ] 20. User Behavior Timeline (Admin)
 **Time:** 120 min  
 **Location:** AdminDashboard.tsx - new "User Activity" tab
 
 ---
 
-### [ ] 19. Analytics Export (PDF/CSV)
+### [ ] 21. Analytics Export (PDF/CSV)
 **Time:** 90 min  
 **Location:** AdminDashboard.tsx
 
 ---
 
-### [ ] 20. Global Notification Panel
+### [ ] 22. Global Notification Panel
 **Time:** 60 min  
 **Location:** Navbar.tsx
 
@@ -470,10 +702,17 @@ CREATE TABLE theory_votes (
 | Heatmap | 120m | - | MEDIUM | 🟡 |
 | Trends Chart | 90m | - | MEDIUM | 🟡 |
 | Evidence Voting | 120m | HIGH | - | 🔴 |
-| Theories/Voting | 180m | HIGH | - | 🔴 |
+| Community Theories | 180m | HIGH | - | 🔴 |
+| User Polls (Monetized) | 200m | HIGH | MEDIUM | 🔴 |
 | Team Analytics | 90m | HIGH | - | 🟡 |
+| Case Submission Templates | 90m | HIGH | - | 🔴 |
+| Investigation Procedures | 90m | HIGH | - | 🔴 |
+| Bulk Admin Operations | 150m | - | HIGH | 🔴 |
+| User Behavior Timeline | 120m | - | MEDIUM | 🟡 |
+| Analytics Export | 90m | - | MEDIUM | 🟡 |
+| Notification Panel | 60m | HIGH | - | 🔴 |
 
-**Total Effort:** ~1500 minutes (~25 days of focused work)
+**Total Effort:** ~2000 minutes (~33 days of focused work)
 
 ---
 
@@ -488,5 +727,8 @@ Examples:
 - analytics_events.country → Geography tracked but not visualized
 - case_comments → Evidence collected but not voted on
 
-**Strategy:** Make existing features visible to users to maximize engagement immediately.
+**New Monetization Feature:**
+- **User Polls** (Task 14b) - Users pay 1€-15€ to create surveys visible on landing page
+- Platform earns 30%, creator keeps 70%
+- High engagement + revenue opportunity
 

@@ -33,6 +33,10 @@ export const UserProfile: React.FC = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [badges, setBadges] = useState<any[]>([]);
+  const [streaks, setStreaks] = useState<any>(null);
+  const [followCount, setFollowCount] = useState(0);
+  const [followerCount, setFollowerCount] = useState(0);
 
   // Load profile based on username parameter or current user
   useEffect(() => {
@@ -183,6 +187,75 @@ export const UserProfile: React.FC = () => {
     };
     
     loadUserCases();
+  }, [profile?.id]);
+
+  // Load badges
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    const loadBadges = async () => {
+      try {
+        const { data } = await supabase
+          .from('user_badges')
+          .select('id, badge_id, earned_at, badges(id, name, slug, description, icon)')
+          .eq('user_id', profile.id)
+          .order('earned_at', { ascending: false });
+        
+        setBadges(data || []);
+      } catch (error) {
+        console.error('Failed to load badges:', error);
+      }
+    };
+    
+    loadBadges();
+  }, [profile?.id]);
+
+  // Load login streaks
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    const loadStreaks = async () => {
+      try {
+        const { data } = await supabase
+          .from('user_challenges')
+          .select('*')
+          .eq('user_id', profile.id)
+          .eq('challenge_id', 'login-streak')
+          .single();
+        
+        setStreaks(data || null);
+      } catch (error) {
+        console.error('Failed to load streaks:', error);
+      }
+    };
+    
+    loadStreaks();
+  }, [profile?.id]);
+
+  // Load follow counts
+  useEffect(() => {
+    if (!profile?.id) return;
+    
+    const loadFollowCounts = async () => {
+      try {
+        const { count: following } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact' })
+          .eq('follower_id', profile.id);
+        
+        const { count: followers } = await supabase
+          .from('user_follows')
+          .select('*', { count: 'exact' })
+          .eq('following_id', profile.id);
+        
+        setFollowCount(following || 0);
+        setFollowerCount(followers || 0);
+      } catch (error) {
+        console.error('Failed to load follow counts:', error);
+      }
+    };
+    
+    loadFollowCounts();
   }, [profile?.id]);
 
   if (!profile || !user) {
@@ -441,15 +514,75 @@ export const UserProfile: React.FC = () => {
               <div className="text-sm text-gray-500">Cases Submitted</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-mystery-400 mb-1">0</div>
-              <div className="text-sm text-gray-500">Comments</div>
+              <div className="text-2xl font-bold text-mystery-400 mb-1">{followCount}</div>
+              <div className="text-sm text-gray-500">Following</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-mystery-400 mb-1">0</div>
+              <div className="text-2xl font-bold text-mystery-400 mb-1">{followerCount}</div>
               <div className="text-sm text-gray-500">Followers</div>
             </div>
           </div>
         </div>
+
+        {/* Badges Section */}
+        {badges.length > 0 && (
+          <div className="bg-mystery-800 rounded-lg border border-mystery-700 p-6 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <Trophy className="w-6 h-6 text-yellow-400" />
+              Badges
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {badges.map((badge: any) => (
+                <div
+                  key={badge.id}
+                  className="flex flex-col items-center text-center p-3 bg-mystery-700/50 rounded-lg hover:bg-mystery-700 transition-colors cursor-pointer group"
+                  title={badge.badges?.description}
+                >
+                  <span className="text-3xl mb-2">
+                    {badge.badges?.icon || '🏆'}
+                  </span>
+                  <span className="text-xs font-semibold text-gray-300 group-hover:text-white transition">
+                    {badge.badges?.name || 'Badge'}
+                  </span>
+                  <span className="text-xs text-gray-500 mt-1">
+                    {badge.earned_at ? format(new Date(badge.earned_at), 'MMM d, yyyy') : 'Earned'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Login Streak Section */}
+        {streaks && streaks.progress > 0 && (
+          <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg border border-orange-500/30 p-6 mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <Zap className="w-6 h-6 text-orange-400" />
+              🔥 Login Streak
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-orange-400 mb-1">
+                  {streaks.progress}
+                </div>
+                <div className="text-sm text-gray-300">Days</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-yellow-400 mb-1">
+                  {streaks.reward_points || 0}
+                </div>
+                <div className="text-sm text-gray-300">Points Earned</div>
+              </div>
+              {streaks.completed_at && (
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-400">✓</div>
+                  <div className="text-sm text-gray-300">Challenge Complete</div>
+                </div>
+              )}
+            </div>
+            <p className="text-sm text-gray-400 mt-4 text-center">Keep your login streak going to earn more rewards!</p>
+          </div>
+        )}
 
         {/* Investigator Information - Only show for approved investigators */}
         {profile.role === 'investigator' && profile.investigator_status === 'approved' && (

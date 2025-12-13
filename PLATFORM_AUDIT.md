@@ -98,6 +98,9 @@
 ### 🟡 HIDDEN FEATURES
 - Investigator subscription - `/subscription/plans` route
 - Team collaboration - Via rewardSplitModal, but UI is unclear
+- **Case submission templates** - Should help users provide better case data
+  - Users need guidance when creating cases (what info to include)
+  - Could use pre-made templates: "UFO Sighting Template", "Cryptid Encounter", etc.
 
 ---
 
@@ -130,14 +133,12 @@
    - Suggestion: Add progress bar (30% complete)
 
 3. **Investigation templates**
-   - ❌ Missing: Case templates for quick start
-   - Would speed up case creation
+   - ❌ Missing: Structured templates for case solving
+   - Would speed up investigation process for investigators
+   - Investigators need guidance: "What to check?", "What evidence to look for?"
+   - **Related:** Case submission templates needed for users (when creating cases)
 
-4. **Bulk operations**
-   - ❌ Missing: Select 10 cases and perform actions
-   - Currently one at a time only
-
-5. **Case notes/documentation system**
+6. **Case notes/documentation system**
    - ✅ Investigation log exists
    - ⚠️ Limited: No PDF export, basic documentation
 
@@ -149,6 +150,11 @@
    - ✅ Plans displayed
    - ❌ Missing: Feature usage indicators
    - E.g., API access, analytics, team member limits not shown
+
+8. **Bulk case operations**
+   - ❌ Not applicable: Each case is unique and requires individual investigation
+   - **Note:** Bulk operations make sense for admins (approvals, bans), not for case solving
+   - Better approach: Case workflow templates to speed up investigation process
 
 ### 🟡 DIFFICULT TO FIND
 - Team management - TeamManagementPanel.tsx exists but hard to locate
@@ -247,9 +253,15 @@
    - ❌ Missing: Vote on best evidence
    - Would improve engagement
 
-5. **Community consensus meter**
-   - ❌ Missing: "85% believe UFO"
-   - Voting on theories needed
+5. **Community consensus meter - User polls**
+   - ❌ Missing: "85% believe UFO" (voting on case theories)
+   - ✨ NEW IDEA: Users create paid polls
+   - **Landing page:** Featured 3-5 paid polls (trending/newest)
+   - **Dedicated page:** Full Polls Page - all polls visible
+   - **Access:** Public (guests can browse and vote)
+   - Cost: 1€ (3-day) to 15€ (30-day)
+   - Max 50 active polls, admin approval required
+   - Monetization: Platform 30%, creators 70%
 
 6. **Case theories section**
    - ❌ Missing: Organized theories

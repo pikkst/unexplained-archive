@@ -72,9 +72,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-mystery-800 rounded-xl shadow-2xl w-full max-w-md border border-mystery-700">
-        <div className="flex justify-between items-center p-6 border-b border-mystery-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-mystery-800 rounded-xl shadow-2xl w-full max-w-md border border-mystery-700 my-8 max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center p-6 border-b border-mystery-700 flex-shrink-0">
           <h2 className="text-2xl font-bold text-white">
             {mode === 'login' ? 'Welcome Back' : 'Join Unexplained Archive'}
           </h2>
@@ -86,7 +86,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -106,6 +106,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                     className="w-full bg-mystery-900 border border-mystery-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-mystery-500 focus:border-transparent outline-none"
                     placeholder="Choose a username"
                     required={mode === 'register'}
@@ -166,6 +167,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 className="w-full bg-mystery-900 border border-mystery-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-mystery-500 focus:border-transparent outline-none"
                 placeholder="your@email.com"
                 required
@@ -183,6 +185,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onFocus={(e) => e.target.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                 className="w-full bg-mystery-900 border border-mystery-700 rounded-lg pl-10 pr-4 py-2.5 text-white focus:ring-2 focus:ring-mystery-500 focus:border-transparent outline-none"
                 placeholder="••••••••"
                 required

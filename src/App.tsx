@@ -23,6 +23,7 @@ import { Wallet } from './components/Wallet';
 import { InvestigatorSubscriptionPlans } from './components/InvestigatorSubscriptionPlans';
 import { SubscriptionManagement } from './components/SubscriptionManagement';
 import SubscriptionSuccess from './components/SubscriptionSuccess';
+import { EmailVerification } from './components/EmailVerification';
 import { useAnalyticsTracking } from './hooks/useAnalytics';
 
 // Create React Query client
@@ -103,6 +104,8 @@ function AppContent() {
           <Route path="/about" element={<AboutUs />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/terms" element={<TermsAndConditions />} />
+          <Route path="/auth/callback" element={<EmailVerification />} />
+          <Route path="/verify-email" element={<EmailVerification />} />
 
           {/* Subscription Routes */}
           <Route path="/subscription/plans" element={<InvestigatorSubscriptionPlans />} />
