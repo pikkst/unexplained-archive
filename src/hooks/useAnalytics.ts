@@ -28,6 +28,20 @@ function parseUtmParams(search: string) {
   };
 }
 
+async function getCountry(): Promise<string | null> {
+  try {
+    // Use ip-api.com free tier (45 requests/minute)
+    // or ipapi.co which has no rate limit for basic data
+    const response = await fetch('https://ipapi.co/json/');
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.country_name || data.country || null;
+  } catch (error) {
+    console.error('Failed to get country:', error);
+    return null;
+  }
+}
+
 export function useAnalyticsTracking() {
   const location = useLocation();
 
@@ -50,6 +64,8 @@ export function useAnalyticsTracking() {
     (async () => {
       try {
         const { data: userData } = await supabase.auth.getUser();
+        const country = await getCountry();
+        
         await (supabase as any).from('analytics_events').insert({
           visitor_id: visitorId,
           session_id: sessionId,
@@ -65,6 +81,7 @@ export function useAnalyticsTracking() {
           screen_resolution,
           browser: navigator.userAgent,
           os: undefined,
+          country,
           user_id: userData?.user?.id ?? null,
         });
       } catch (error) {
