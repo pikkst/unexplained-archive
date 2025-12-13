@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")
-const ADMIN_EMAIL = "admin@unexplainedarchive.com"
+const ADMIN_EMAIL = "huntersest@gmail.com"
+const FROM_EMAIL = "onboarding@resend.dev"  // Resend default domain
 
 interface ContactFormData {
   name: string
@@ -71,7 +72,7 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "onboarding@resend.dev",
+        from: FROM_EMAIL,
         to: ADMIN_EMAIL,
         reply_to: email,
         subject: `[${category.toUpperCase()}] New contact form submission from ${name}`,
