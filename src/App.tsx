@@ -46,7 +46,17 @@ function ProtectedRoute({
 }) {
   const { user, profile, loading } = useAuth();
 
+  // Save current location to localStorage so we can return after auth loads
+  React.useEffect(() => {
+    if (user && !loading) {
+      // User is authenticated, save their current location
+      localStorage.setItem('lastProtectedRoute', window.location.pathname);
+    }
+  }, [user, loading]);
+
   if (loading) {
+    // User is loading - show loading screen but stay on the page
+    // Don't redirect, wait for auth to load
     return (
       <div className="min-h-screen flex items-center justify-center bg-mystery-900">
         <div className="text-center">
