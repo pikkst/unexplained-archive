@@ -291,7 +291,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router basename="/unexplained-archive/">
+        <Router basename={import.meta.env.BASE_URL || '/'}>
           <AppContent />
         </Router>
       </AuthProvider>
