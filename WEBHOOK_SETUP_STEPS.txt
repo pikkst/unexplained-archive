@@ -1,0 +1,66 @@
+===================================================
+STRIPE WEBHOOK SETUP - QUICK GUIDE
+===================================================
+
+1. Open Stripe Dashboard:
+   https://dashboard.stripe.com/test/webhooks
+
+2. Add new endpoint (or update existing):
+   - Click "Add endpoint" button
+   - Enter URL: https://hbkuximdpvxmcdlkniwi.supabase.co/functions/v1/stripe-webhook
+   
+3. Select events to listen for:
+   ✅ checkout.session.completed
+   ✅ customer.subscription.created (optional, for future Pro subscriptions)
+   ✅ customer.subscription.updated (optional)
+   ✅ customer.subscription.deleted (optional)
+
+4. Save endpoint
+
+5. Copy webhook signing secret (starts with whsec_...)
+
+6. If webhook secret changed, update it:
+   npx supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_your_new_secret
+
+===================================================
+TESTING CHECKLIST
+===================================================
+
+After SQL deployment, test these flows:
+
+1. BOOST PURCHASE TEST:
+   - Create a case (logged in as user)
+   - Go to case detail page
+   - Click "Boost This Case" button
+   - Select 24h boost (€5)
+   - Pay with test card: 4242 4242 4242 4242
+   - Verify "BOOSTED" badge appears
+   - Check database:
+     SELECT * FROM featured_cases WHERE status = 'active';
+
+2. VERIFICATION REQUEST TEST:
+   - Login as investigator (approved status)
+   - Go to Investigator Dashboard
+   - Click "Get Verified" button
+   - Select Standard (€25)
+   - Pay with test card: 4242 4242 4242 4242
+   - Check database:
+     SELECT * FROM background_checks WHERE status = 'pending';
+   - Admin approves in future
+   - Badge appears on profile
+
+3. DATABASE VERIFICATION:
+   -- Check boost pricing loaded
+   SELECT * FROM boost_pricing;
+   
+   -- Check transactions
+   SELECT * FROM transactions 
+   WHERE transaction_type IN ('case_boost', 'background_check')
+   ORDER BY created_at DESC;
+   
+   -- Check platform revenue
+   SELECT * FROM platform_revenue 
+   ORDER BY created_at DESC 
+   LIMIT 5;
+
+===================================================

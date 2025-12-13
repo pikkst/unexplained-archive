@@ -1,0 +1,2088 @@
+
+import React, { useEffect, useState } from 'react';
+import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Case } from '../types';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { MassNotificationPanel } from './MassNotificationPanel';
+import { SubscriptionGroupNotifications } from './SubscriptionGroupNotifications';
+
+const COLORS = ['#6366f1', '#22d3ee', '#a855f7', '#94a3b8', '#f59e0b', '#10b981'];
+
+// Props to receive cases and action handlers
+interface AdminDashboardProps {
+    cases?: Case[];
+    onResolveDispute?: (caseId: string, action: 'RELEASE' | 'REJECT' | 'VOTE') => void;
+}
+
+interface CategoryDistribution {
+  name: string;
+  value: number;
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCases, onResolveDispute }) => {
+  const [cases, setCases] = useState<Case[]>(initialCases || []);
+  const [categoryDistribution, setCategoryDistribution] = useState<CategoryDistribution[]>([]);
+  const [pendingInvestigators, setPendingInvestigators] = useState<any[]>([]);
+  const [investigatorApplications, setInvestigatorApplications] = useState<any[]>([]);
+  const [activeInvestigators, setActiveInvestigators] = useState<any[]>([]);
+  const [backgroundChecks, setBackgroundChecks] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions'>('overview');
+  const [stats, setStats] = useState({
+  totalCases: 0,
+  activeUsers: 0,
+  pendingInvestigators: 0,
+  pendingVerifications: 0,
+  disputedCases: 0,
+  totalVolume: 0,
+  platformRevenue: 0,
+  totalUserDeposits: 0,
+  stripeBalance: 0,
+  proSubscribers: 0
+});
+  const [analyticsData, setAnalyticsData] = useState({
+    pageViews: 0,
+    uniqueVisitors: 0,
+    avgSessionDuration: '0m',
+    bounceRate: '0%',
+    topPages: [] as { page: string; views: number }[],
+    trafficSources: [] as { source: string; visits: number }[],
+    topCountries: [] as { country: string; visits: number }[]
+  });
+  const [seoRankings, setSeoRankings] = useState<any[]>([]);
+  const [newSeoRanking, setNewSeoRanking] = useState({ keyword: '', page_url: '', search_engine: 'google', ranking_position: 1, country: 'US' });
+  const [editingSeoId, setEditingSeoId] = useState<string | null>(null);
+  const [articles, setArticles] = useState<any[]>([]);
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [editingArticle, setEditingArticle] = useState<any>(null);
+  const [newArticle, setNewArticle] = useState({ title: '', content: '', seo_keywords: '' });
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [publishingArticle, setPublishingArticle] = useState(false);
+  const [selectedTx, setSelectedTx] = useState<any | null>(null);
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  const loadAdminData = async () => {
+    try {
+      // Get all cases
+      const { data: casesData } = await supabase.from('cases').select('*');
+      
+      // Get all users
+      const { data: usersData } = await supabase.from('profiles').select('id');
+      
+      // Get pending investigator applications via RPC
+      const { data: applicationsRpcData, error: appsError } = await supabase
+        .rpc('get_pending_investigator_applications');
+      
+      if (appsError) {
+        console.error('Error loading applications:', appsError);
+      } else if (applicationsRpcData?.success && applicationsRpcData.applications) {
+        setInvestigatorApplications(applicationsRpcData.applications);
+      }
+
+      // Get all active investigators
+      const { data: investigatorsRpcData, error: invError } = await supabase
+        .rpc('get_all_investigators');
+      
+      if (invError) {
+        console.error('Error loading investigators:', invError);
+      } else if (investigatorsRpcData?.success && investigatorsRpcData.investigators) {
+        setActiveInvestigators(investigatorsRpcData.investigators);
+      }
+
+      // Get pending background checks
+      const { data: checksData, error: checksError } = await supabase
+        .from('background_checks')
+        .select('*, investigator:profiles!investigator_id(username, full_name, avatar_url)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (checksError) {
+        console.error('Error loading background checks:', checksError);
+      } else {
+        setBackgroundChecks(checksData || []);
+      }
+
+      // Get Pro subscribers count
+      const { count: proCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_pro_member', true);
+      
+      // Get disputed cases count
+      const { count: disputedCount } = await supabase
+        .from('cases')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'DISPUTED');
+
+      // Get recent transactions
+      const { data: transactionsData, error: txError } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      console.log('Transactions query result:', { transactionsData, txError });
+
+      if (txError) {
+        console.error('Error loading transactions:', txError);
+      }
+
+      // Get wallet user mappings
+      let enrichedTransactions = transactionsData || [];
+      if (transactionsData && transactionsData.length > 0) {
+        const walletIds = new Set<string>();
+        transactionsData.forEach(tx => {
+          if (tx.from_wallet_id) walletIds.add(tx.from_wallet_id);
+          if (tx.to_wallet_id) walletIds.add(tx.to_wallet_id);
+        });
+
+        if (walletIds.size > 0) {
+          const { data: walletsData } = await supabase
+            .from('wallets')
+            .select('id, user_id, user:profiles(username, avatar_url)')
+            .in('id', Array.from(walletIds));
+
+          const walletMap = new Map(walletsData?.map(w => [w.id, w]) || []);
+          
+          enrichedTransactions = transactionsData.map(tx => ({
+            ...tx,
+            from_wallet: tx.from_wallet_id ? walletMap.get(tx.from_wallet_id) : null,
+            to_wallet: tx.to_wallet_id ? walletMap.get(tx.to_wallet_id) : null
+          }));
+        }
+      }
+
+      if (enrichedTransactions.length > 0) {
+        setTransactions(enrichedTransactions);
+        setFilteredTransactions(enrichedTransactions);
+      }
+
+      // Calculate total transaction volume
+      const { data: volumeData } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('status', 'completed');
+      
+      const totalVolume = volumeData?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
+
+      // Calculate ALL money that entered Stripe (not just wallet deposits)
+      // 1. Wallet deposits
+      const { data: walletDepositsData } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('transaction_type', 'deposit')
+        .eq('status', 'completed');
+      
+      const walletDeposits = walletDepositsData?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
+      
+      // 2. ALL revenue (boosts, fees, etc) from platform_revenue table
+      const { data: allRevenueData } = await supabase
+        .from('platform_revenue')
+        .select('amount');
+      
+      const directRevenue = allRevenueData?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0;
+      
+      // 3. Withdrawals (money that left Stripe)
+      const { data: withdrawalsData } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('transaction_type', 'withdrawal')
+        .eq('status', 'completed');
+      
+      const totalWithdrawals = withdrawalsData?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
+      
+      // Physical money in Stripe account
+      // = Wallet deposits + Direct revenue (boosts, fees) - Withdrawals
+      const stripeAccountBalance = walletDeposits + directRevenue - totalWithdrawals;
+
+      // Calculate User Liabilities (what we owe to users in their wallets)
+      const { data: walletsData } = await supabase
+        .from('wallets')
+        .select('balance, user_id')
+        .not('user_id', 'is', null); // Only user wallets
+      
+      const totalUserLiabilities = walletsData?.reduce((sum, w) => sum + (w.balance || 0), 0) || 0;
+
+      // Platform Revenue = Money earned that we can use
+      // When user spends from wallet (donations, boosts), that becomes our revenue
+      // Formula: What entered Stripe - What we owe users - What left Stripe
+      const platformRevenue = stripeAccountBalance - totalUserLiabilities;
+
+      if (casesData) {
+        setCases(casesData);
+        
+        // Calculate category distribution from actual data
+        const categoryCount: { [key: string]: number } = {};
+        casesData.forEach(c => {
+          const category = c.category || 'Other';
+          categoryCount[category] = (categoryCount[category] || 0) + 1;
+        });
+        
+        const distribution = Object.entries(categoryCount).map(([name, value]) => ({
+          name,
+          value
+        }));
+        
+        setCategoryDistribution(distribution);
+      }
+      
+      setStats({
+        totalCases: casesData?.length || 0,
+        activeUsers: usersData?.length || 0,
+        pendingInvestigators: applicationsRpcData?.applications?.length || 0,
+        pendingVerifications: checksData?.length || 0,
+        disputedCases: disputedCount || 0,
+        totalVolume,
+        platformRevenue, // Available for development = Stripe - Liabilities
+        totalUserDeposits: totalUserLiabilities, // Rename for clarity: User Liabilities
+        stripeBalance: stripeAccountBalance, // Add new stat
+        proSubscribers: proCount || 0
+      });
+
+      // Load analytics data
+      await loadAnalytics();
+      
+      // Load SEO rankings
+      await loadSeoRankings();
+      
+      // Load articles
+      await loadArticles();
+    } catch (error) {
+      console.error('Failed to load admin data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    try {
+      // In production, this would fetch from your analytics service (Google Analytics, Plausible, etc.)
+      // For now, we'll use mock data or fetch from a custom analytics table
+      const { data: analyticsEvents } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (analyticsEvents) {
+        // Calculate metrics
+        const pageViews = analyticsEvents.length;
+        const uniqueVisitors = new Set(analyticsEvents.map(e => e.visitor_id)).size;
+        
+        // Top pages
+        const pageCount: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.page_path) {
+            pageCount[e.page_path] = (pageCount[e.page_path] || 0) + 1;
+          }
+        });
+        const topPages = Object.entries(pageCount)
+          .map(([page, views]) => ({ page, views }))
+          .sort((a, b) => b.views - a.views)
+          .slice(0, 10);
+
+        // Traffic sources
+        const sourceCount: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.referrer) {
+            sourceCount[e.referrer] = (sourceCount[e.referrer] || 0) + 1;
+          }
+        });
+        const trafficSources = Object.entries(sourceCount)
+          .map(([source, visits]) => ({ source, visits }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 10);
+
+        // Top countries
+        const countryCount: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.country) {
+            countryCount[e.country] = (countryCount[e.country] || 0) + 1;
+          }
+        });
+        const topCountries = Object.entries(countryCount)
+          .map(([country, visits]) => ({ country, visits }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 10);
+
+        setAnalyticsData({
+          pageViews,
+          uniqueVisitors,
+          avgSessionDuration: '3m 24s',
+          bounceRate: '42%',
+          topPages,
+          trafficSources,
+          topCountries
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    }
+  };
+
+  const loadSeoRankings = async () => {
+    try {
+      const { data } = await (supabase as any)
+        .from('seo_rankings')
+        .select('*')
+        .order('date', { ascending: false })
+        .limit(100);
+      
+      if (data) {
+        setSeoRankings(data);
+      }
+    } catch (error) {
+      console.error('Failed to load SEO rankings:', error);
+    }
+  };
+
+  const loadArticles = async () => {
+    try {
+      const { data } = await supabase
+        .from('blog_articles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (data) {
+        setArticles(data);
+      }
+    } catch (error) {
+      console.error('Failed to load articles:', error);
+    }
+  };
+
+  const publishArticle = async () => {
+    if (!newArticle.title || !newArticle.content) {
+      alert('Please fill in title and content');
+      return;
+    }
+
+    setPublishingArticle(true);
+    try {
+      const { error } = await supabase
+        .from('blog_articles')
+        .insert({
+          title: newArticle.title,
+          content: newArticle.content,
+          seo_keywords: newArticle.seo_keywords,
+          slug: newArticle.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          published: true
+        });
+
+      if (error) throw error;
+
+      setNewArticle({ title: '', content: '', seo_keywords: '' });
+      await loadArticles();
+      alert('Article published successfully!');
+    } catch (error) {
+      console.error('Failed to publish article:', error);
+      alert('Failed to publish article');
+    } finally {
+      setPublishingArticle(false);
+    }
+  };
+
+  const addSeoRanking = async () => {
+    if (!newSeoRanking.keyword || !newSeoRanking.page_url) {
+      alert('Please fill in keyword and page URL');
+      return;
+    }
+
+    try {
+      const { error } = await (supabase as any)
+        .from('seo_rankings')
+        .insert({
+          keyword: newSeoRanking.keyword,
+          page_url: newSeoRanking.page_url,
+          search_engine: newSeoRanking.search_engine,
+          ranking_position: newSeoRanking.ranking_position,
+          country: newSeoRanking.country,
+          date: new Date().toISOString().split('T')[0]
+        });
+
+      if (error) throw error;
+
+      setNewSeoRanking({ keyword: '', page_url: '', search_engine: 'google', ranking_position: 1, country: 'US' });
+      await loadSeoRankings();
+      alert('SEO ranking added successfully!');
+    } catch (error) {
+      console.error('Failed to add SEO ranking:', error);
+      alert('Failed to add SEO ranking');
+    }
+  };
+
+  const updateSeoRanking = async (id: string, updates: any) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('seo_rankings')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadSeoRankings();
+      setEditingSeoId(null);
+      alert('SEO ranking updated!');
+    } catch (error) {
+      console.error('Failed to update SEO ranking:', error);
+      alert('Failed to update SEO ranking');
+    }
+  };
+
+  const deleteSeoRanking = async (id: string) => {
+    if (!confirm('Delete this SEO ranking entry?')) return;
+
+    try {
+      const { error } = await (supabase as any)
+        .from('seo_rankings')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadSeoRankings();
+      alert('SEO ranking deleted!');
+    } catch (error) {
+      console.error('Failed to delete SEO ranking:', error);
+      alert('Failed to delete SEO ranking');
+    }
+  };
+
+  const updateArticle = async (id: string) => {
+    if (!editingArticle?.title || !editingArticle?.content) {
+      alert('Please fill in title and content');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('blog_articles')
+        .update({
+          title: editingArticle.title,
+          content: editingArticle.content,
+          seo_keywords: editingArticle.seo_keywords,
+          slug: editingArticle.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setEditingArticleId(null);
+      setEditingArticle(null);
+      await loadArticles();
+      alert('Article updated successfully!');
+    } catch (error) {
+      console.error('Failed to update article:', error);
+      alert('Failed to update article');
+    }
+  };
+
+  const deleteArticle = async (id: string, title: string) => {
+    if (!confirm(`Delete article "${title}"?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('blog_articles')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      await loadArticles();
+      alert('Article deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete article:', error);
+      alert('Failed to delete article');
+    }
+  };
+
+  const disputedCases = cases.filter(c => c.status === 'DISPUTED');
+
+  // Handle dispute resolution
+  const handleResolveDispute = async (caseId: string, action: 'RELEASE' | 'REJECT' | 'VOTE') => {
+    try {
+      const caseData = cases.find(c => c.id === caseId);
+      if (!caseData) return;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in as admin');
+        return;
+      }
+
+      if (action === 'RELEASE') {
+        // Admin approves investigator - release funds
+        const { data, error } = await supabase.rpc('admin_resolve_dispute', {
+          p_case_id: caseId,
+          p_admin_id: user.id,
+          p_resolution: 'Admin approved investigator work - funds released',
+          p_approve_investigator: true
+        });
+
+        if (error) throw error;
+        alert('✅ Dispute resolved! Funds released to investigator.');
+        await loadAdminData(); // Reload data
+        
+      } else if (action === 'REJECT') {
+        // Admin rejects investigator - refund submitter
+        const { data, error } = await supabase.rpc('admin_resolve_dispute', {
+          p_case_id: caseId,
+          p_admin_id: user.id,
+          p_resolution: 'Admin rejected investigator work - case reopened for new investigation',
+          p_approve_investigator: false
+        });
+
+        if (error) throw error;
+        alert('✅ Dispute resolved! Case reopened for new investigation.');
+        await loadAdminData();
+        
+      } else if (action === 'VOTE') {
+        // Send to community voting (implement later)
+        alert('Community voting feature coming soon!');
+      }
+    } catch (error: any) {
+      console.error('Error resolving dispute:', error);
+      alert('Failed to resolve dispute: ' + error.message);
+    }
+  };
+
+  const filterTransactions = () => {
+    let filtered = [...transactions];
+    
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      filtered = filtered.filter(tx => new Date(tx.created_at) >= fromDate);
+    }
+    
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999); // Include entire end date
+      filtered = filtered.filter(tx => new Date(tx.created_at) <= toDate);
+    }
+    
+    setFilteredTransactions(filtered);
+  };
+
+  const exportToPDF = async () => {
+    setExporting(true);
+    try {
+      // Create PDF content
+      const content = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Transaction Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; border-bottom: 2px solid #6366f1; padding-bottom: 10px; }
+            .header { margin-bottom: 20px; }
+            .info { color: #666; margin-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #6366f1; color: white; padding: 12px; text-align: left; }
+            td { padding: 10px; border-bottom: 1px solid #ddd; }
+            tr:hover { background-color: #f5f5f5; }
+            .amount-positive { color: #10b981; font-weight: bold; }
+            .amount-negative { color: #ef4444; font-weight: bold; }
+            .status-completed { color: #10b981; }
+            .status-pending { color: #f59e0b; }
+            .status-failed { color: #ef4444; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Unexplained Archive - Transaction Report</h1>
+            <p class="info">Generated: ${new Date().toLocaleString()}</p>
+            <p class="info">Period: ${dateFrom || 'All time'} ${dateTo ? `to ${dateTo}` : ''}</p>
+            <p class="info">Total Transactions: ${filteredTransactions.length}</p>
+            <p class="info">Total Volume: €${filteredTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0).toFixed(2)}</p>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Transaction ID</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Type</th>
+                <th>Amount (€)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredTransactions.map(tx => `
+                <tr>
+                  <td>${new Date(tx.created_at).toLocaleString()}</td>
+                  <td style="font-size: 10px; color: #666;">${tx.id}</td>
+                  <td>${tx.from_wallet?.user?.username || 'System'}</td>
+                  <td>${tx.to_wallet?.user?.username || 'System'}</td>
+                  <td>${tx.transaction_type.replace('_', ' ')}</td>
+                  <td class="${['deposit', 'reward'].includes(tx.transaction_type) ? 'amount-positive' : 'amount-negative'}">
+                    ${['deposit', 'reward'].includes(tx.transaction_type) ? '+' : '-'}${tx.amount.toFixed(2)}
+                  </td>
+                  <td class="status-${tx.status}">${tx.status}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <p>This is an official transaction report generated from Unexplained Archive platform.</p>
+            <p>For verification purposes, please contact: admin@unexplainedarchive.com</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Create blob and download
+      const blob = new Blob([content], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transactions_${dateFrom || 'all'}_to_${dateTo || 'now'}_${Date.now()}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Note: For actual PDF, user needs to use browser's "Print to PDF" feature
+      alert('Transaction report downloaded! Open the file and use your browser\'s "Print to PDF" feature to convert it to PDF format.');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold text-white mb-8">System Administration</h1>
+
+      {/* Tab Navigation */}
+      <div className="flex gap-2 mb-8 border-b border-mystery-700">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'overview'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Overview
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'analytics'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Analytics & SEO
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('content')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'content'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Newspaper className="w-5 h-5" />
+            Content Management
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('investigators')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'investigators'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Applications
+            {investigatorApplications.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                {investigatorApplications.length}
+              </span>
+            )}
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('verifications')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'verifications'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Verifications
+            {backgroundChecks.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black text-xs font-bold rounded-full">
+                {backgroundChecks.length}
+              </span>
+            )}
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('subscriptions')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'subscriptions'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Subscriptions & Groups
+          </div>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mystery-400"></div>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'overview' && (
+            <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-blue-500/10 rounded-lg">
+                <Database className="w-6 h-6 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Total Cases</p>
+                <p className="text-2xl font-bold text-white">{stats.totalCases}</p>
+              </div>
+            </div>
+            
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-red-500/10 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Disputed Cases</p>
+                <p className="text-2xl font-bold text-white">{stats.disputedCases}</p>
+              </div>
+            </div>
+
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-purple-500/10 rounded-lg">
+                <Users className="w-6 h-6 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Pending Applications</p>
+                <p className="text-2xl font-bold text-white">{investigatorApplications.length}</p>
+              </div>
+            </div>
+
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-green-500/10 rounded-lg">
+                <Users className="w-6 h-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Active Users</p>
+                <p className="text-2xl font-bold text-white">{stats.activeUsers}</p>
+              </div>
+            </div>
+
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-blue-500/10 rounded-lg">
+                <DollarSign className="w-6 h-6 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Stripe Account Balance</p>
+                <p className="text-2xl font-bold text-blue-400">€{stats.stripeBalance.toFixed(2)}</p>
+                <p className="text-xs text-gray-500 mt-1">Deposits - Withdrawals</p>
+              </div>
+            </div>
+
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-orange-500/10 rounded-lg">
+                <Database className="w-6 h-6 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">User Liabilities</p>
+                <p className="text-2xl font-bold text-orange-400">€{stats.totalUserDeposits.toFixed(2)}</p>
+                <p className="text-xs text-gray-500 mt-1">Wallet balances owed</p>
+              </div>
+            </div>
+
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-green-500/10 rounded-lg">
+                <Shield className="w-6 h-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Platform Revenue</p>
+                <p className="text-2xl font-bold text-green-400">€{stats.platformRevenue.toFixed(2)}</p>
+                <p className="text-xs text-gray-500 mt-1">Available for development</p>
+              </div>
+            </div>
+
+            <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 flex items-center gap-4">
+              <div className="p-3 bg-purple-500/10 rounded-lg">
+                <Users className="w-6 h-6 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Pro Subscribers</p>
+                <p className="text-2xl font-bold text-white">{stats.proSubscribers}</p>
+              </div>
+            </div>
+          </div>
+
+      {/* MASS NOTIFICATION PANEL */}
+      <div className="mb-8">
+        <MassNotificationPanel />
+      </div>
+
+      {/* DISPUTE MANAGEMENT SECTION */}
+      <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Scale className="text-red-400" /> Active Disputes & Escrow Management
+          </h3>
+          {disputedCases.length === 0 ? (
+              <p className="text-gray-400">No active disputes requiring admin attention.</p>
+          ) : (
+              <div className="space-y-4">
+                  {disputedCases.map(c => (
+                      <div key={c.id} className="bg-mystery-900 border border-mystery-700 rounded-lg p-6">
+                          <div className="flex justify-between items-start mb-4">
+                              <div>
+                                  <h4 className="font-bold text-white text-lg">{c.title}</h4>
+                                  <p className="text-sm text-gray-400">Submitter: {c.submittedBy.name} | Investigator: {c.assignedInvestigator?.name}</p>
+                                  <div className="flex gap-4 mt-2 text-sm">
+                                      <span className="text-green-400 font-bold">Escrow Amount: ${c.reward}</span>
+                                      <span className="text-red-400 font-bold">Status: DISPUTED</span>
+                                  </div>
+                              </div>
+                              <button className="text-blue-400 hover:text-white text-sm flex items-center gap-1">
+                                  <FileText className="w-4 h-4" /> View Full Case
+                              </button>
+                          </div>
+                          
+                          <div className="bg-mystery-800 p-4 rounded mb-4">
+                              <p className="text-xs font-bold text-gray-500 uppercase">Investigator Resolution:</p>
+                              <p className="text-gray-300 mb-3">{c.resolutionProposal}</p>
+                              <p className="text-xs font-bold text-gray-500 uppercase">User Rejection Note:</p>
+                              <p className="text-red-300 italic">"Resolution insufficient or evidence lacking." (Standard Rejection)</p>
+                          </div>
+
+                          <div className="flex gap-3 pt-2 border-t border-mystery-700">
+                              <button 
+                                onClick={() => handleResolveDispute(c.id, 'RELEASE')}
+                                className="px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded font-medium text-sm flex items-center gap-2"
+                              >
+                                  <Gavel className="w-4 h-4" /> Approve Investigator
+                              </button>
+                              <button 
+                                onClick={() => handleResolveDispute(c.id, 'REJECT')}
+                                className="px-4 py-2 bg-red-800 hover:bg-red-700 text-white rounded font-medium text-sm flex items-center gap-2"
+                              >
+                                  <AlertCircle className="w-4 h-4" /> Approve Submitter
+                              </button>
+                              <button 
+                                onClick={() => handleResolveDispute(c.id, 'VOTE')}
+                                className="ml-auto px-4 py-2 bg-mystery-600 hover:bg-mystery-500 text-white rounded font-medium text-sm flex items-center gap-2"
+                              >
+                                  <Users className="w-4 h-4" /> Community Vote
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          )}
+      </div>
+
+      {/* Transaction Monitoring */}
+      <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <ArrowRightLeft className="w-6 h-6 text-mystery-400" />
+            <h3 className="font-bold text-white">Transaction Monitoring</h3>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-400">Total Volume</p>
+            <p className="text-2xl font-bold text-white">€{stats.totalVolume.toFixed(2)}</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                From Date
+              </label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-2">
+                To Date
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={filterTransactions}
+                className="flex-1 px-4 py-2 bg-mystery-600 hover:bg-mystery-500 text-white rounded-lg font-medium transition-colors"
+              >
+                Filter
+              </button>
+              <button
+                onClick={() => {
+                  setDateFrom('');
+                  setDateTo('');
+                  setFilteredTransactions(transactions);
+                }}
+                className="px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg font-medium transition-colors"
+              >
+                Reset
+              </button>
+              <button
+                onClick={exportToPDF}
+                disabled={exporting || filteredTransactions.length === 0}
+                className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                {exporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+            </div>
+          </div>
+          {filteredTransactions.length > 0 && (
+            <div className="mt-3 text-sm text-gray-400">
+              Showing {filteredTransactions.length} transaction(s) 
+              {dateFrom || dateTo ? ` (filtered)` : ''}
+              {' • '}
+              Volume: €{filteredTransactions.reduce((sum, tx) => sum + (tx.amount || 0), 0).toFixed(2)}
+            </div>
+          )}
+        </div>
+
+        {transactions.length === 0 ? (
+          <p className="text-gray-400 text-center py-8">No transactions yet</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-mystery-700">
+                  <th className="pb-3 text-sm font-medium text-gray-400">Date</th>
+                  <th className="pb-3 text-sm font-medium text-gray-400">From</th>
+                  <th className="pb-3 text-sm font-medium text-gray-400">To</th>
+                  <th className="pb-3 text-sm font-medium text-gray-400">Type</th>
+                  <th className="pb-3 text-sm font-medium text-gray-400 text-right">Amount</th>
+                  <th className="pb-3 text-sm font-medium text-gray-400 text-center">Status</th>
+                  <th className="pb-3 text-sm font-medium text-gray-400">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-mystery-700">
+                {filteredTransactions.slice(0, 20).map((tx) => (
+                  <tr key={tx.id} className="hover:bg-mystery-700/30">
+                    <td className="py-3 text-sm text-gray-300">
+                      {new Date(tx.created_at).toLocaleDateString()}
+                      <br />
+                      <span className="text-xs text-gray-500">
+                        {new Date(tx.created_at).toLocaleTimeString()}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        {tx.from_wallet?.user?.avatar_url ? (
+                          <img src={tx.from_wallet.user.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                        ) : (
+                          <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center">
+                            <Users className="w-3 h-3 text-gray-400" />
+                          </div>
+                        )}
+                        <span className="text-sm text-white">
+                          {tx.from_wallet?.user?.username || 'System'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-2">
+                        {tx.to_wallet?.user?.avatar_url ? (
+                          <img src={tx.to_wallet.user.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                        ) : (
+                          <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center">
+                            <Users className="w-3 h-3 text-gray-400" />
+                          </div>
+                        )}
+                        <span className="text-sm text-white">
+                          {tx.to_wallet?.user?.username || 'System'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-mystery-700 text-gray-300">
+                          {tx.transaction_type === 'deposit' && <TrendingUp className="w-3 h-3 text-green-400" />}
+                          {tx.transaction_type === 'withdrawal' && <TrendingDown className="w-3 h-3 text-red-400" />}
+                          {tx.transaction_type.replace('_', ' ')}
+                        </span>
+                        {tx.transaction_type === 'donation' && (
+                          <span className="text-xs text-gray-500">
+                            → {tx.case_id ? 'Case' : tx.metadata?.target === 'platform' ? 'Platform' : 'Unknown'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-3 text-right">
+                      {(() => {
+                        // Stripe Account Cash Flow perspective:
+                        // + = Money ENTERS Stripe account (deposits)
+                        // - = Money LEAVES Stripe account (withdrawals)
+                        // Virtual wallet transactions (donations, etc) don't affect Stripe balance directly
+                        
+                        let sign = '';
+                        let colorClass = 'text-gray-400';
+                        
+                        if (tx.transaction_type === 'deposit') {
+                          // Money enters Stripe account (but is liability to user)
+                          sign = '+';
+                          colorClass = 'text-blue-400';
+                        } else if (tx.transaction_type === 'withdrawal') {
+                          // Money leaves Stripe account
+                          sign = '-';
+                          colorClass = 'text-red-400';
+                        } else if (tx.transaction_type === 'donation' && !tx.from_wallet?.user) {
+                          // Donation FROM platform wallet (rare, admin donation)
+                          sign = '-';
+                          colorClass = 'text-red-400';
+                        } else if (tx.transaction_type === 'donation' && !tx.to_wallet?.user) {
+                          // Donation TO platform = platform revenue
+                          sign = '+';
+                          colorClass = 'text-green-400';
+                        }
+                        
+                        return (
+                          <span className={`text-sm font-bold ${colorClass}`}>
+                            {sign}€{tx.amount.toFixed(2)}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="py-3 text-center">
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                        tx.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                        tx.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                        tx.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {tx.status}
+                      </span>
+                    </td>
+                    <td className="py-3">
+                      <button onClick={() => setSelectedTx(tx)} className="text-mystery-400 hover:text-mystery-300 text-xs">
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Verification Queue */}
+        <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+          <h3 className="font-bold text-white mb-6">Investigator Verification Queue</h3>
+          {pendingInvestigators.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No pending investigator applications</p>
+          ) : (
+            <div className="space-y-4">
+              {pendingInvestigators.slice(0, 5).map((inv) => (
+                <div key={inv.id} className="flex items-center justify-between p-4 bg-mystery-900 rounded-lg border border-mystery-700">
+                  <div className="flex items-center gap-3">
+                    {inv.user?.avatar_url ? (
+                      <img src={inv.user.avatar_url} alt="" className="w-10 h-10 rounded-full" />
+                    ) : (
+                      <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5 text-gray-400" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-white font-medium">{inv.user?.username || 'Unknown'}</p>
+                      <p className="text-xs text-gray-400">
+                        Applied: {new Date(inv.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="px-3 py-1 bg-green-600 hover:bg-green-500 text-white text-xs rounded transition-colors">
+                      Approve
+                    </button>
+                    <button className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded transition-colors">
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Case Distribution Chart */}
+        <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+          <h3 className="font-bold text-white mb-6">Phenomena Distribution</h3>
+          {categoryDistribution.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No case data available</p>
+          ) : (
+            <>
+              <div style={{ width: '100%', height: '256px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categoryDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {categoryDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        borderColor: '#334155', 
+                        color: '#ffffff',
+                        borderRadius: '8px',
+                        padding: '8px 12px'
+                      }}
+                      itemStyle={{ color: '#ffffff' }}
+                      labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs text-gray-400">
+                {categoryDistribution.map((d, i) => (
+                  <div key={d.name} className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }}></div>
+                    {d.name} ({d.value})
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+            </>
+          )}
+
+          {/* Analytics & SEO Tab */}
+          {activeTab === 'analytics' && (
+            <>
+              {/* Analytics Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Eye className="w-5 h-5 text-blue-400" />
+                    <p className="text-sm text-gray-400">Page Views</p>
+                  </div>
+                  <p className="text-3xl font-bold text-white">{analyticsData.pageViews.toLocaleString()}</p>
+                </div>
+
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Users className="w-5 h-5 text-green-400" />
+                    <p className="text-sm text-gray-400">Unique Visitors</p>
+                  </div>
+                  <p className="text-3xl font-bold text-white">{analyticsData.uniqueVisitors.toLocaleString()}</p>
+                </div>
+
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                  <div className="flex items-center gap-3 mb-2">
+                    <MousePointer className="w-5 h-5 text-purple-400" />
+                    <p className="text-sm text-gray-400">Avg. Session</p>
+                  </div>
+                  <p className="text-3xl font-bold text-white">{analyticsData.avgSessionDuration}</p>
+                </div>
+
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                  <div className="flex items-center gap-3 mb-2">
+                    <TrendingDown className="w-5 h-5 text-orange-400" />
+                    <p className="text-sm text-gray-400">Bounce Rate</p>
+                  </div>
+                  <p className="text-3xl font-bold text-white">{analyticsData.bounceRate}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                {/* Top Pages */}
+                <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                  <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-mystery-400" />
+                    Top Pages
+                  </h3>
+                  <div className="space-y-3">
+                    {analyticsData.topPages.map((page, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-mystery-900/50 rounded">
+                        <span className="text-sm text-gray-300">{page.page}</span>
+                        <span className="text-sm font-bold text-mystery-400">{page.views} views</span>
+                      </div>
+                    ))}
+                    {analyticsData.topPages.length === 0 && (
+                      <p className="text-gray-500 text-center py-4">No data available</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Traffic Sources */}
+                <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                  <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-mystery-400" />
+                    Traffic Sources
+                  </h3>
+                  <div className="space-y-3">
+                    {analyticsData.trafficSources.map((source, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-mystery-900/50 rounded">
+                        <span className="text-sm text-gray-300">{source.source}</span>
+                        <span className="text-sm font-bold text-mystery-400">{source.visits} visits</span>
+                      </div>
+                    ))}
+                    {analyticsData.trafficSources.length === 0 && (
+                      <p className="text-gray-500 text-center py-4">No data available</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Top Countries */}
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <Globe className="w-5 h-5 text-mystery-400" />
+                  Top Countries
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {analyticsData.topCountries.map((country, idx) => (
+                    <div key={idx} className="p-4 bg-mystery-900/50 rounded text-center">
+                      <p className="text-2xl mb-2">🌍</p>
+                      <p className="text-sm text-gray-300 mb-1">{country.country}</p>
+                      <p className="text-lg font-bold text-mystery-400">{country.visits}</p>
+                    </div>
+                  ))}
+                  {analyticsData.topCountries.length === 0 && (
+                    <p className="text-gray-500 text-center py-4 col-span-full">No data available</p>
+                  )}
+                </div>
+              </div>
+
+              {/* SEO Rankings Management */}
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+                <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                  <Search className="w-5 h-5 text-mystery-400" />
+                  SEO Rankings Management
+                </h3>
+
+                {/* Add New SEO Ranking */}
+                <div className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-4 mb-6">
+                  <h4 className="text-sm font-bold text-gray-300 mb-4">Track New Keyword</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Keyword (e.g., unexplained mysteries)"
+                      value={newSeoRanking.keyword}
+                      onChange={(e) => setNewSeoRanking({ ...newSeoRanking, keyword: e.target.value })}
+                      className="px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white text-sm focus:outline-none focus:border-mystery-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Page URL (e.g., /explore)"
+                      value={newSeoRanking.page_url}
+                      onChange={(e) => setNewSeoRanking({ ...newSeoRanking, page_url: e.target.value })}
+                      className="px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white text-sm focus:outline-none focus:border-mystery-500"
+                    />
+                    <select
+                      value={newSeoRanking.search_engine}
+                      onChange={(e) => setNewSeoRanking({ ...newSeoRanking, search_engine: e.target.value })}
+                      className="px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white text-sm focus:outline-none focus:border-mystery-500"
+                    >
+                      <option value="google">Google</option>
+                      <option value="bing">Bing</option>
+                      <option value="duckduckgo">DuckDuckGo</option>
+                      <option value="yandex">Yandex</option>
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Position"
+                      min="1"
+                      max="100"
+                      value={newSeoRanking.ranking_position}
+                      onChange={(e) => setNewSeoRanking({ ...newSeoRanking, ranking_position: parseInt(e.target.value) || 1 })}
+                      className="px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white text-sm focus:outline-none focus:border-mystery-500"
+                    />
+                    <button
+                      onClick={addSeoRanking}
+                      className="px-4 py-2 bg-mystery-500 hover:bg-mystery-400 text-white rounded-lg font-medium text-sm transition-colors"
+                    >
+                      + Add Ranking
+                    </button>
+                  </div>
+                </div>
+
+                {/* SEO Rankings Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-mystery-700">
+                        <th className="pb-3 font-medium text-gray-400">Keyword</th>
+                        <th className="pb-3 font-medium text-gray-400">Page</th>
+                        <th className="pb-3 font-medium text-gray-400">Engine</th>
+                        <th className="pb-3 font-medium text-gray-400">Position</th>
+                        <th className="pb-3 font-medium text-gray-400">Country</th>
+                        <th className="pb-3 font-medium text-gray-400">Last Updated</th>
+                        <th className="pb-3 font-medium text-gray-400">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-mystery-700">
+                      {seoRankings.map((ranking) => (
+                        <tr key={ranking.id} className="hover:bg-mystery-700/30">
+                          <td className="py-3 text-white font-medium">{ranking.keyword}</td>
+                          <td className="py-3 text-gray-300 truncate max-w-xs">{ranking.page_url}</td>
+                          <td className="py-3">
+                            <span className="px-2 py-1 bg-mystery-700 text-gray-300 rounded text-xs capitalize">
+                              {ranking.search_engine}
+                            </span>
+                          </td>
+                          <td className="py-3">
+                            {editingSeoId === ranking.id ? (
+                              <input
+                                type="number"
+                                defaultValue={ranking.ranking_position}
+                                min="1"
+                                max="100"
+                                className="w-16 px-2 py-1 bg-mystery-800 border border-mystery-600 rounded text-white text-sm"
+                                onBlur={(e) => updateSeoRanking(ranking.id, { ranking_position: parseInt(e.target.value) })}
+                              />
+                            ) : (
+                              <span className={`font-bold ${
+                                ranking.ranking_position <= 3 ? 'text-green-400' :
+                                ranking.ranking_position <= 10 ? 'text-blue-400' :
+                                ranking.ranking_position <= 20 ? 'text-yellow-400' :
+                                'text-gray-400'
+                              }`}>
+                                #{ranking.ranking_position}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 text-gray-300">{ranking.country}</td>
+                          <td className="py-3 text-gray-400 text-xs">{new Date(ranking.date).toLocaleDateString()}</td>
+                          <td className="py-3">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setEditingSeoId(editingSeoId === ranking.id ? null : ranking.id)}
+                                className="text-blue-400 hover:text-blue-300 text-xs"
+                              >
+                                {editingSeoId === ranking.id ? 'Done' : 'Edit'}
+                              </button>
+                              <button
+                                onClick={() => deleteSeoRanking(ranking.id)}
+                                className="text-red-400 hover:text-red-300 text-xs"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {seoRankings.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-gray-500">
+                            No SEO rankings tracked yet. Add keywords to monitor your search engine performance.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Content Management Tab */}
+          {activeTab === 'content' && (
+            <>
+              {/* New Article Form */}
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <Newspaper className="w-5 h-5 text-mystery-400" />
+                  Create New Article
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Article Title
+                    </label>
+                    <input
+                      type="text"
+                      value={newArticle.title}
+                      onChange={(e) => setNewArticle({ ...newArticle, title: e.target.value })}
+                      placeholder="Enter article title..."
+                      className="w-full px-4 py-2 bg-mystery-900 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      SEO Keywords (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={newArticle.seo_keywords}
+                      onChange={(e) => setNewArticle({ ...newArticle, seo_keywords: e.target.value })}
+                      placeholder="unexplained mysteries, paranormal, ufo sightings..."
+                      className="w-full px-4 py-2 bg-mystery-900 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Article Content
+                    </label>
+                    <textarea
+                      value={newArticle.content}
+                      onChange={(e) => setNewArticle({ ...newArticle, content: e.target.value })}
+                      placeholder="Write your article content here... (supports Markdown)"
+                      rows={12}
+                      className="w-full px-4 py-2 bg-mystery-900 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500 font-mono text-sm"
+                    />
+                  </div>
+
+                  <button
+                    onClick={publishArticle}
+                    disabled={publishingArticle}
+                    className="px-6 py-3 bg-mystery-500 hover:bg-mystery-400 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {publishingArticle ? 'Publishing...' : 'Publish Article'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Published Articles */}
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-mystery-400" />
+                  Published Articles ({articles.length})
+                </h3>
+                <div className="space-y-3">
+                  {articles.map((article) => (
+                    <div key={article.id} className="p-4 bg-mystery-900/50 rounded-lg border border-mystery-700">
+                      {editingArticleId === article.id ? (
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={editingArticle?.title || ''}
+                            onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })}
+                            className="w-full px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500"
+                            placeholder="Article Title"
+                          />
+                          <input
+                            type="text"
+                            value={editingArticle?.seo_keywords || ''}
+                            onChange={(e) => setEditingArticle({ ...editingArticle, seo_keywords: e.target.value })}
+                            className="w-full px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500"
+                            placeholder="SEO Keywords (comma separated)"
+                          />
+                          <textarea
+                            value={editingArticle?.content || ''}
+                            onChange={(e) => setEditingArticle({ ...editingArticle, content: e.target.value })}
+                            rows={8}
+                            className="w-full px-3 py-2 bg-mystery-800 border border-mystery-600 rounded-lg text-white focus:outline-none focus:border-mystery-500 font-mono text-sm"
+                            placeholder="Article Content"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updateArticle(article.id)}
+                              className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm rounded transition-colors"
+                            >
+                              Save Changes
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingArticleId(null);
+                                setEditingArticle(null);
+                              }}
+                              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="text-white font-medium mb-1">{article.title}</h4>
+                            <p className="text-sm text-gray-400 mb-2">
+                              Published: {new Date(article.created_at).toLocaleString()}
+                              {article.updated_at && article.updated_at !== article.created_at && (
+                                <span className="ml-2 text-yellow-400">
+                                  (Updated: {new Date(article.updated_at).toLocaleString()})
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-sm text-gray-500 mb-2">Views: {article.views || 0} • Likes: {article.likes || 0}</p>
+                            {article.seo_keywords && (
+                              <div className="flex flex-wrap gap-2">
+                                {article.seo_keywords.split(',').map((keyword: string, idx: number) => (
+                                  <span key={idx} className="px-2 py-1 bg-mystery-700 text-xs text-gray-300 rounded">
+                                    {keyword.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingArticleId(article.id);
+                                setEditingArticle({ ...article });
+                              }}
+                              className="px-3 py-1 bg-mystery-600 hover:bg-mystery-500 text-white text-xs rounded transition-colors"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteArticle(article.id, article.title)}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-500 text-white text-xs rounded transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {articles.length === 0 && (
+                    <p className="text-gray-500 text-center py-8">No articles published yet</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* VERIFICATIONS TAB */}
+          {activeTab === 'verifications' && (
+            <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-yellow-400" />
+                Pending Background Checks ({backgroundChecks.length})
+              </h3>
+
+              {backgroundChecks.length === 0 ? (
+                <div className="text-center py-12">
+                  <Shield className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No pending verification requests</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {backgroundChecks.map((check) => (
+                    <div key={check.id} className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
+                            {check.investigator?.avatar_url ? (
+                              <img src={check.investigator.avatar_url} alt={check.investigator.username} className="w-full h-full object-cover" />
+                            ) : (
+                              <Users className="w-6 h-6 text-gray-500" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-white">{check.investigator?.username}</h4>
+                            <p className="text-sm text-gray-400">{check.investigator?.full_name}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Requested: {new Date(check.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className={`px-3 py-1 text-sm font-medium rounded-full mb-2 ${
+                            check.check_type === 'premium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'
+                          }`}>
+                            {check.check_type.toUpperCase()} CHECK
+                          </span>
+                          <span className="text-green-400 font-bold">PAID €{check.price_paid}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div className="bg-mystery-800 p-4 rounded-lg">
+                          <h5 className="font-bold text-white mb-3">Verification Checklist</h5>
+                          <div className="space-y-2">
+                            <label className="flex items-center gap-2 text-gray-300">
+                              <input type="checkbox" className="form-checkbox bg-mystery-700 border-mystery-600 rounded text-blue-500" id={`id_${check.id}`} />
+                              Identity Verified
+                            </label>
+                            <label className="flex items-center gap-2 text-gray-300">
+                              <input type="checkbox" className="form-checkbox bg-mystery-700 border-mystery-600 rounded text-blue-500" id={`cred_${check.id}`} />
+                              Credentials Verified
+                            </label>
+                            <label className="flex items-center gap-2 text-gray-300">
+                              <input type="checkbox" className="form-checkbox bg-mystery-700 border-mystery-600 rounded text-blue-500" id={`bg_${check.id}`} />
+                              Clean Background Check
+                            </label>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-mystery-800 p-4 rounded-lg">
+                          <h5 className="font-bold text-white mb-3">Documents</h5>
+                          {check.documents && check.documents.length > 0 ? (
+                            <div className="space-y-2">
+                              {check.documents.map((doc: any, i: number) => (
+                                <a
+                                  key={i}
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 text-blue-400 hover:text-blue-300"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  {doc.type} Document
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-gray-500 text-sm">No documents uploaded</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={async () => {
+                            const idVerified = (document.getElementById(`id_${check.id}`) as HTMLInputElement)?.checked;
+                            const credVerified = (document.getElementById(`cred_${check.id}`) as HTMLInputElement)?.checked;
+                            const bgVerified = (document.getElementById(`bg_${check.id}`) as HTMLInputElement)?.checked;
+
+                            if (!idVerified && !credVerified && !bgVerified) {
+                              if (!confirm('No items checked. Are you sure you want to approve?')) return;
+                            }
+                            
+                            try {
+                              const { data: user } = await supabase.auth.getUser();
+                              const { error } = await supabase.rpc('complete_background_check', {
+                                p_check_id: check.id,
+                                p_admin_id: user.user?.id,
+                                p_verified: true,
+                                p_identity_verified: idVerified,
+                                p_credentials_verified: credVerified,
+                                p_background_clear: bgVerified,
+                                p_review_notes: 'Approved via Admin Dashboard'
+                              });
+
+                              if (error) throw error;
+
+                              alert('✅ Verification approved!');
+                              loadAdminData();
+                            } catch (error: any) {
+                              console.error('Failed to approve:', error);
+                              alert('Error: ' + error.message);
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle className="w-4 h-4" /> Approve & Verify
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const reason = prompt('Reason for rejection:');
+                            if (!reason) return;
+
+                            try {
+                              const { data: user } = await supabase.auth.getUser();
+                              const { error } = await supabase.rpc('complete_background_check', {
+                                p_check_id: check.id,
+                                p_admin_id: user.user?.id,
+                                p_verified: false,
+                                p_identity_verified: false,
+                                p_credentials_verified: false,
+                                p_background_clear: false,
+                                p_review_notes: reason
+                              });
+
+                              if (error) throw error;
+
+                              alert('Verification rejected.');
+                              loadAdminData();
+                            } catch (error: any) {
+                              console.error('Failed to reject:', error);
+                              alert('Error: ' + error.message);
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                        >
+                          <X className="w-4 h-4" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* INVESTIGATORS TAB */}
+          {activeTab === 'investigators' && (
+            <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Shield className="w-6 h-6 text-mystery-400" />
+                Pending Investigator Applications ({investigatorApplications.length})
+              </h3>
+
+              {investigatorApplications.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No pending applications</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {investigatorApplications.map((app) => (
+                    <div key={app.id} className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
+                            {app.applicant?.avatar_url ? (
+                              <img src={app.applicant.avatar_url} alt={app.applicant.username} className="w-full h-full object-cover" />
+                            ) : (
+                              <Users className="w-6 h-6 text-gray-500" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-bold text-white">{app.applicant?.username}</h4>
+                            <p className="text-sm text-gray-400">{app.applicant?.email}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Applied: {new Date(app.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 text-sm font-medium rounded-full">
+                          Pending Review
+                        </span>
+                      </div>
+
+                      <div className="space-y-3 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Motivation</label>
+                          <p className="text-white bg-mystery-800 p-3 rounded-lg">{app.motivation}</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-400 mb-1">Areas of Expertise</label>
+                          <div className="flex flex-wrap gap-2">
+                            {app.expertise && app.expertise.length > 0 ? (
+                              app.expertise.map((exp: string, idx: number) => (
+                                <span key={idx} className="px-3 py-1 bg-mystery-500/20 text-mystery-300 text-sm rounded-full">
+                                  {exp}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-500 text-sm">None specified</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {app.experience && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Experience</label>
+                            <p className="text-white bg-mystery-800 p-3 rounded-lg whitespace-pre-wrap">{app.experience}</p>
+                          </div>
+                        )}
+
+                        {app.certifications && app.certifications.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Certifications</label>
+                            <div className="space-y-2">
+                              {app.certifications.map((cert: any, idx: number) => (
+                                <div key={idx} className="bg-mystery-800 p-3 rounded-lg">
+                                  <p className="text-white font-medium">{cert.name}</p>
+                                  <p className="text-sm text-gray-400">
+                                    {cert.issuer} • {cert.year}
+                                    {cert.url && (
+                                      <a href={cert.url} target="_blank" rel="noopener noreferrer" className="ml-2 text-mystery-400 hover:text-mystery-300">
+                                        View Certificate →
+                                      </a>
+                                    )}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {app.documents && app.documents.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Uploaded Documents</label>
+                            <div className="space-y-2">
+                              {app.documents.map((doc: any, idx: number) => (
+                                <a href={doc.url} target="_blank" rel="noopener noreferrer" key={idx} className="flex items-center gap-2 p-2 bg-mystery-800 rounded-lg hover:bg-mystery-700">
+                                  <FileText className="w-4 h-4 text-mystery-400" />
+                                  <span className="text-sm text-blue-400 hover:underline">{doc.fileName} ({doc.type})</span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3">
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Approve ${app.applicant?.username} as investigator?`)) return;
+                            
+                            try {
+                              const { error } = await supabase.rpc('approve_investigator_application_wrapper', {
+                                action_data: {
+                                  application_id: app.id,
+                                  admin_id: (await supabase.auth.getUser()).data.user?.id
+                                }
+                              });
+
+                              if (error) throw error;
+
+                              alert(`✅ ${app.applicant?.username} approved as investigator!`);
+                              loadAdminData();
+                            } catch (error) {
+                              console.error('Failed to approve application:', error);
+                              alert('Failed to approve application. Please try again.');
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors"
+                        >
+                          ✓ Approve Application
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const reason = prompt(`Rejection reason for ${app.applicant?.username}:`);
+                            if (!reason) return;
+
+                            try {
+                              const { error } = await supabase.rpc('reject_investigator_application_wrapper', {
+                                action_data: {
+                                  application_id: app.id,
+                                  admin_id: (await supabase.auth.getUser()).data.user?.id,
+                                  reason: reason
+                                }
+                              });
+
+                              if (error) throw error;
+
+                              alert(`Application rejected.`);
+                              loadAdminData();
+                            } catch (error) {
+                              console.error('Failed to reject application:', error);
+                              alert('Failed to reject application. Please try again.');
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-medium rounded-lg transition-colors"
+                        >
+                          ✗ Reject Application
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Active Investigators Section */}
+              <div className="mt-8">
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Shield className="w-6 h-6 text-green-400" />
+                  Active Investigators ({activeInvestigators.length})
+                </h3>
+
+                {activeInvestigators.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No active investigators</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {activeInvestigators.map((inv) => (
+                      <div key={inv.id} className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
+                            {inv.avatar_url ? (
+                              <img src={inv.avatar_url} alt={inv.username} className="w-full h-full object-cover" />
+                            ) : (
+                              <Users className="w-5 h-5 text-gray-500" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-white truncate">{inv.username || 'Anonymous'}</h4>
+                            <p className="text-xs text-gray-400">{inv.full_name || 'No name'}</p>
+                          </div>
+                          <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-medium rounded-full">
+                            Active
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm text-gray-400 mb-3 space-y-1">
+                          <p>⭐ Reputation: {inv.reputation || 0}</p>
+                          <p>📁 Cases: {inv.cases_count || 0}</p>
+                          <p>✓ Status: {inv.verification_status || 'unverified'}</p>
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            const reason = prompt(`Reason for demoting ${inv.username || 'this investigator'}:`);
+                            if (reason === null) return;
+
+                            if (!confirm(`Are you sure you want to demote ${inv.username || 'this investigator'} to regular user?`)) return;
+
+                            try {
+                              const { data, error } = await supabase.rpc('demote_investigator', {
+                                action_data: {
+                                  user_id: inv.id,
+                                  reason: reason || 'No reason provided'
+                                }
+                              });
+
+                              if (error) throw error;
+                              if (data && !data.success) throw new Error(data.error);
+
+                              alert(`${inv.username || 'Investigator'} has been demoted to user.`);
+                              loadAdminData();
+                            } catch (error: any) {
+                              console.error('Failed to demote investigator:', error);
+                              alert('Failed to demote investigator: ' + (error.message || 'Unknown error'));
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                          ↓ Demote to User
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SUBSCRIPTIONS TAB */}
+          {activeTab === 'subscriptions' && (
+            <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+              <SubscriptionGroupNotifications />
+            </div>
+          )}
+        </>
+      )}
+
+      {selectedTx && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 sm:p-8 w-full max-w-2xl text-white">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Transaction Details</h3>
+              <button
+                onClick={() => setSelectedTx(null)}
+                className="text-gray-400 hover:text-white text-3xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">Transaction ID:</span>
+                <span className="font-mono text-xs">{selectedTx.id}</span>
+              </div>
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">Date:</span>
+                <span>{new Date(selectedTx.created_at).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">From:</span>
+                <span className="font-bold">{selectedTx.from_wallet?.user?.username || 'System'}</span>
+              </div>
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">To:</span>
+                <span className="font-bold">{selectedTx.to_wallet?.user?.username || 'System'}</span>
+              </div>
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">Type:</span>
+                <span className="capitalize">{selectedTx.transaction_type.replace('_', ' ')}</span>
+              </div>
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">Amount:</span>
+                <span className={`font-bold text-lg ${
+                  ['deposit', 'reward', 'donation_received'].includes(selectedTx.transaction_type) 
+                    ? 'text-green-400' 
+                    : 'text-red-400'
+                }`}>
+                  {['deposit', 'reward', 'donation_received'].includes(selectedTx.transaction_type) ? '+' : '-'}
+                  €{selectedTx.amount.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-mystery-700 pb-2">
+                <span className="text-gray-400">Status:</span>
+                <span className={`font-medium px-2 py-1 rounded text-xs ${
+                  selectedTx.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                  selectedTx.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                  selectedTx.status === 'failed' ? 'bg-red-500/20 text-red-400' :
+                  'bg-gray-500/20 text-gray-400'
+                }`}>
+                  {selectedTx.status}
+                </span>
+              </div>
+              {selectedTx.metadata && Object.keys(selectedTx.metadata).length > 0 && (
+                <div className="pt-2">
+                  <span className="text-gray-400">Metadata:</span>
+                  <pre className="text-white bg-mystery-900 p-3 rounded-lg mt-2 text-xs overflow-auto">
+                    {JSON.stringify(selectedTx.metadata, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+            <div className="mt-8 text-right">
+              <button
+                onClick={() => setSelectedTx(null)}
+                className="px-6 py-2 bg-mystery-600 hover:bg-mystery-500 text-white rounded-lg font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

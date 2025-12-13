@@ -1,0 +1,2 @@
+-- This file is deprecated - likes are now tracked in forum_post_likes table
+-- See create-forum-post-likes-table.sql instead
