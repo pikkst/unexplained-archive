@@ -291,47 +291,48 @@ export const CaseMap: React.FC<CaseMapProps> = ({
             <div className="absolute top-4 left-4 z-[500]">
                <button 
                  onClick={() => setIsLegendOpen(!isLegendOpen)}
-                 className="bg-mystery-900/90 text-white p-2 rounded-lg border border-mystery-700 hover:bg-mystery-800 mb-2 shadow-lg flex items-center gap-2 md:hidden"
+                 className="bg-mystery-900/90 text-white p-2 rounded-lg border border-mystery-700 hover:bg-mystery-800 mb-2 shadow-lg flex items-center gap-2"
                >
-                 <Layers className="w-4 h-4" /> {isLegendOpen ? 'Hide Legend' : 'Show Legend'}
+                 <Layers className="w-4 h-4" /> {isLegendOpen ? 'Hide' : 'Legend'}
                </button>
 
-               <div className={`bg-mystery-900/95 backdrop-blur-md p-4 rounded-xl border border-mystery-700 shadow-2xl transition-all w-64 ${isLegendOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none absolute'}`}>
-                 <div className="flex justify-between items-center mb-3">
-                   <h3 className="font-bold text-white text-sm flex items-center gap-2">
-                     <Layers className="w-4 h-4 text-mystery-accent" /> Map Legend
+               <div className={`bg-mystery-900/95 backdrop-blur-md p-3 rounded-xl border border-mystery-700 shadow-2xl transition-all w-56 md:w-64 max-h-[70vh] overflow-y-auto ${isLegendOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-full pointer-events-none'}`}>
+                 <div className="flex justify-between items-center mb-3 gap-2">
+                   <h3 className="font-bold text-white text-xs md:text-sm flex items-center gap-2">
+                     <Layers className="w-4 h-4 text-mystery-accent" /> 
+                     <span className="hidden sm:inline">Map Legend</span>
                    </h3>
-                   <span className="text-xs text-gray-400 bg-mystery-800 px-2 py-0.5 rounded-full border border-mystery-700">
-                     {visibleCases.length} Cases
+                   <span className="text-xs text-gray-400 bg-mystery-800 px-2 py-0.5 rounded-full border border-mystery-700 whitespace-nowrap">
+                     {visibleCases.length}
                    </span>
                  </div>
 
-             <div className="space-y-2">
+             <div className="space-y-1.5">
                {CATEGORIES.map(cat => (
-                 <div key={cat} className="flex items-center justify-between cursor-pointer hover:bg-mystery-800/50 p-1.5 rounded" onClick={() => toggleCategory(cat)}>
-                   <div className="flex items-center gap-2">
+                 <div key={cat} className="flex items-center justify-between cursor-pointer hover:bg-mystery-800/50 p-1.5 rounded transition-colors" onClick={() => toggleCategory(cat)}>
+                   <div className="flex items-center gap-2 min-w-0">
                      <span 
-                       className="w-3 h-3 rounded-full shadow-[0_0_5px]" 
+                       className="w-3 h-3 rounded-full shadow-[0_0_5px] flex-shrink-0" 
                        style={{ 
                          backgroundColor: getCategoryColor(cat),
                          boxShadow: `0 0 5px ${getCategoryColor(cat)}`
                        }}
                      ></span>
-                     <span className={`text-xs font-medium transition-colors ${selectedCategories.has(cat) ? 'text-gray-200' : 'text-gray-600'}`}>
+                     <span className={`text-xs font-medium transition-colors truncate ${selectedCategories.has(cat) ? 'text-gray-200' : 'text-gray-600'}`}>
                        {cat.toUpperCase()}
                      </span>
                    </div>
-                   <button className="text-gray-500 hover:text-white">
+                   <button className="text-gray-500 hover:text-white flex-shrink-0">
                       {selectedCategories.has(cat) ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                    </button>
                  </div>
                ))}
              </div>
 
-             <div className="mt-4 pt-3 border-t border-mystery-700">
-               <div className="text-[10px] text-gray-500 flex justify-between">
-                 <span>Zoom &lt; 5: Heatmap Dots</span>
-                 <span>Zoom &gt; 11: Case Cards</span>
+             <div className="mt-3 pt-2 border-t border-mystery-700 hidden sm:block">
+               <div className="text-[10px] text-gray-500 space-y-1">
+                 <div>Zoom &lt; 5: Dots</div>
+                 <div>Zoom &gt; 11: Cards</div>
                </div>
              </div>
            </div>
