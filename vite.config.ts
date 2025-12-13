@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: './', // Use relative paths for GitHub Pages
+  base: '/unexplained-archive/', // GitHub Pages subpath - MUST be absolute
   server: {
     port: 3000,
     host: '0.0.0.0',
