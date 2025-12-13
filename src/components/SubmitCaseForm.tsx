@@ -413,8 +413,8 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
 
           {/* Map Picker Modal */}
           {showMapPicker && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-              <div className="bg-mystery-800 w-full max-w-4xl h-[600px] rounded-xl border border-mystery-600 flex flex-col overflow-hidden">
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+              <div className="bg-mystery-800 w-full max-w-4xl h-[600px] rounded-xl border border-mystery-600 flex flex-col overflow-hidden z-40">
                 <div className="p-4 bg-mystery-900 border-b border-mystery-700 flex justify-between items-center">
                   <h3 className="text-white font-bold flex items-center gap-2"><MapIcon className="w-4 h-4"/> Pin Exact Location</h3>
                   <button onClick={() => setShowMapPicker(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5"/></button>
