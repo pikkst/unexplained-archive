@@ -92,20 +92,20 @@ export const Navbar: React.FC = () => {
   return (
     <>
       <nav className="sticky top-0 z-50 bg-mystery-900/80 backdrop-blur-md border-b border-mystery-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center cursor-pointer">
+            <Link to="/" className="flex items-center cursor-pointer flex-shrink-0">
               <div className="w-8 h-8 bg-mystery-500 rounded-lg flex items-center justify-center mr-2 shadow-[0_0_15px_rgba(99,102,241,0.5)]">
                 <Search className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-white">
+              <span className="text-lg sm:text-xl font-bold tracking-tight text-white">
                 Unexplained<span className="text-mystery-400">Archive</span>
               </span>
             </Link>
 
             {/* Nav Links (Desktop) */}
-            <div className="hidden md:flex items-center space-x-6">
+            <div className="hidden lg:flex items-center space-x-6">
               <Link to="/explore" className="text-gray-300 hover:text-white transition-colors text-sm font-medium">
                 Explore Cases
               </Link>
@@ -124,7 +124,7 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* Right Actions */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               {user ? (
                 <>
                   {/* Notifications Bell */}
@@ -275,7 +275,7 @@ export const Navbar: React.FC = () => {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="md:hidden text-gray-400 hover:text-white"
+                className="lg:hidden text-gray-400 hover:text-white p-1"
               >
                 <Menu className="w-6 h-6" />
               </button>
@@ -284,7 +284,7 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile Menu */}
           {showMobileMenu && (
-            <div className="md:hidden border-t border-mystery-700 py-4 space-y-2">
+            <div className="lg:hidden border-t border-mystery-700 py-4 space-y-2">
               <Link to="/explore" className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
                 Explore Cases
               </Link>
