@@ -22,27 +22,22 @@ serve(async (req) => {
 
   try {
     // Get Google API credentials from environment
-    const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
-    const GA_PROPERTY_ID = Deno.env.get('GA_PROPERTY_ID') || 'properties/516453057'; // Default Property ID
-    const GOOGLE_SERVICE_ACCOUNT = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON'); // Service Account JSON
+    const GOOGLE_SERVICE_ACCOUNT = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON');
+    const GA_PROPERTY_ID = Deno.env.get('GA_PROPERTY_ID') || 'properties/516453057';
     
-    if (!GOOGLE_API_KEY && !GOOGLE_SERVICE_ACCOUNT) {
-      throw new Error('GOOGLE_API_KEY or GOOGLE_SERVICE_ACCOUNT_JSON not configured');
+    if (!GOOGLE_SERVICE_ACCOUNT) {
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON not configured');
     }
 
-    // Note: Google Analytics Data API requires OAuth2, not just API key
-    // For now, return a helpful error message
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: 'Google Analytics Data API requires OAuth2 authentication. Please use the Supabase analytics_events table or configure Service Account credentials.',
-        fallback: 'analytics_events'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200, // Return 200 so frontend can handle gracefully
-      }
-    );
+    // Parse service account credentials
+    const serviceAccount = JSON.parse(GOOGLE_SERVICE_ACCOUNT);
+    
+    // Get OAuth2 access token
+    const accessToken = await getAccessToken(serviceAccount);
+    
+    if (!accessToken) {
+      throw new Error('Failed to obtain OAuth2 access token');
+    }
 
     // Verify admin access
     const authHeader = req.headers.get('Authorization');
@@ -87,15 +82,15 @@ serve(async (req) => {
 
     switch (action) {
       case 'fetch_analytics':
-        result = await fetchGoogleAnalytics(GOOGLE_API_KEY, GA_PROPERTY_ID, dateRange);
+        result = await fetchGoogleAnalytics(accessToken, GA_PROPERTY_ID, dateRange);
         break;
       
       case 'fetch_search_console':
-        result = await fetchSearchConsole(GOOGLE_API_KEY);
+        result = await fetchSearchConsole(accessToken);
         break;
       
       case 'fetch_realtime':
-        result = await fetchRealtimeUsers(GOOGLE_API_KEY, GA_PROPERTY_ID);
+        result = await fetchRealtimeUsers(accessToken, GA_PROPERTY_ID);
         break;
       
       default:
@@ -128,7 +123,7 @@ serve(async (req) => {
  * Fetch Google Analytics 4 data
  */
 async function fetchGoogleAnalytics(
-  apiKey: string, 
+  accessToken: string, 
   propertyId: string | undefined,
   dateRange?: { startDate: string; endDate: string }
 ) {
@@ -140,11 +135,12 @@ async function fetchGoogleAnalytics(
   const endDate = dateRange?.endDate || 'today';
 
   const response = await fetch(
-    `https://analyticsdata.googleapis.com/v1beta/${propertyId}:runReport?key=${apiKey}`,
+    `https://analyticsdata.googleapis.com/v1beta/${propertyId}:runReport`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         dateRanges: [{ startDate, endDate }],
@@ -262,7 +258,7 @@ function parseAnalyticsData(data: any) {
 /**
  * Fetch Google Search Console data
  */
-async function fetchSearchConsole(apiKey: string) {
+async function fetchSearchConsole(accessToken: string) {
   const siteUrl = 'sc-domain:unexplainedarchive.com'; // Adjust to your domain
   
   // Calculate dates
@@ -273,11 +269,12 @@ async function fetchSearchConsole(apiKey: string) {
   const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
   const response = await fetch(
-    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query?key=${apiKey}`,
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         startDate: formatDate(startDate),
@@ -311,17 +308,18 @@ async function fetchSearchConsole(apiKey: string) {
 /**
  * Fetch real-time active users
  */
-async function fetchRealtimeUsers(apiKey: string, propertyId: string | undefined) {
+async function fetchRealtimeUsers(accessToken: string, propertyId: string | undefined) {
   if (!propertyId) {
     return { activeUsers: 0 };
   }
 
   const response = await fetch(
-    `https://analyticsdata.googleapis.com/v1beta/${propertyId}:runRealtimeReport?key=${apiKey}`,
+    `https://analyticsdata.googleapis.com/v1beta/${propertyId}:runRealtimeReport`,
     {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         metrics: [{ name: 'activeUsers' }],
@@ -337,4 +335,96 @@ async function fetchRealtimeUsers(apiKey: string, propertyId: string | undefined
   return {
     activeUsers: parseInt(data.rows?.[0]?.metricValues?.[0]?.value || '0'),
   };
+}
+
+/**
+ * Get OAuth2 access token from Service Account
+ */
+async function getAccessToken(serviceAccount: any): Promise<string | null> {
+  try {
+    // Create JWT
+    const header = {
+      alg: 'RS256',
+      typ: 'JWT',
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+    const expiry = now + 3600; // 1 hour
+
+    const claimSet = {
+      iss: serviceAccount.client_email,
+      scope: 'https://www.googleapis.com/auth/analytics.readonly',
+      aud: serviceAccount.token_uri,
+      exp: expiry,
+      iat: now,
+    };
+
+    // Encode header and claim set
+    const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const encodedClaimSet = btoa(JSON.stringify(claimSet)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    
+    const signatureInput = `${encodedHeader}.${encodedClaimSet}`;
+
+    // Import private key
+    const privateKey = await crypto.subtle.importKey(
+      'pkcs8',
+      pemToArrayBuffer(serviceAccount.private_key),
+      {
+        name: 'RSASSA-PKCS1-v1_5',
+        hash: 'SHA-256',
+      },
+      false,
+      ['sign']
+    );
+
+    // Sign
+    const signature = await crypto.subtle.sign(
+      'RSASSA-PKCS1-v1_5',
+      privateKey,
+      new TextEncoder().encode(signatureInput)
+    );
+
+    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+      .replace(/=/g, '')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_');
+
+    const jwt = `${signatureInput}.${encodedSignature}`;
+
+    // Exchange JWT for access token
+    const tokenResponse = await fetch(serviceAccount.token_uri, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    });
+
+    if (!tokenResponse.ok) {
+      console.error('Token exchange failed:', await tokenResponse.text());
+      return null;
+    }
+
+    const tokenData = await tokenResponse.json();
+    return tokenData.access_token;
+  } catch (error) {
+    console.error('Failed to get access token:', error);
+    return null;
+  }
+}
+
+/**
+ * Convert PEM to ArrayBuffer
+ */
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
