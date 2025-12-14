@@ -14,14 +14,9 @@ Deno.serve(async (req) => {
   try {
     // Initialize Stripe inside the handler to avoid initialization errors blocking OPTIONS
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
-    const STRIPE_OPERATIONS_ACCOUNT_ID = Deno.env.get('STRIPE_OPERATIONS_ACCOUNT_ID');
     
     if (!STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY not configured');
-    }
-    
-    if (!STRIPE_OPERATIONS_ACCOUNT_ID) {
-      throw new Error('STRIPE_OPERATIONS_ACCOUNT_ID not configured');
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
@@ -46,7 +41,7 @@ Deno.serve(async (req) => {
     // Get user details for email
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('username')
+      .select('username, stripe_customer_id')
       .eq('id', userId)
       .single();
 
@@ -56,10 +51,38 @@ Deno.serve(async (req) => {
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (authError) throw authError;
 
-    // Create a Stripe Checkout session
-    // NOTE: We don't use customer_email or customer parameter when using connected accounts
-    // Connected accounts have their own customer base
-    // Instead, we use customer_creation: 'always' to create customer on connected account
+    // Try to get or create a Stripe customer
+    let customerId = userProfile.stripe_customer_id;
+    
+    // If we have a stored customer ID, verify it exists (it might be from old connected account)
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch (err) {
+        console.log('Stored customer ID invalid, will create new:', err.message);
+        customerId = null;
+      }
+    }
+    
+    // Create new customer if needed
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: authUser.user.email,
+        metadata: {
+          supabase_user_id: userId,
+          username: userProfile.username,
+        },
+      });
+      customerId = customer.id;
+      
+      // Save the customer ID for future use
+      await supabaseAdmin
+        .from('profiles')
+        .update({ stripe_customer_id: customerId })
+        .eq('id', userId);
+    }
+
+    // Create a Stripe Checkout session using main account (not connected account)
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -74,8 +97,7 @@ Deno.serve(async (req) => {
         quantity: 1,
       }],
       mode: 'payment',
-      customer_creation: 'always', // Create customer on connected account
-      customer_email: authUser.user.email, // Pre-fill email
+      customer: customerId, // Use verified customer ID
       success_url: `${req.headers.get('origin')}/wallet?deposit=success`,
       cancel_url: `${req.headers.get('origin')}/wallet?deposit=canceled`,
       payment_intent_data: {
@@ -90,8 +112,6 @@ Deno.serve(async (req) => {
         userId: userId,
         amount: amount.toString(),
       },
-    }, {
-      stripeAccount: STRIPE_OPERATIONS_ACCOUNT_ID, // Use connected account
     });
 
     return new Response(JSON.stringify({ sessionId: session.id, checkoutUrl: session.url }), {
