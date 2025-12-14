@@ -17,7 +17,8 @@ export const ExploreCases: React.FC = () => {
   const [filter, setFilter] = useState({
     search: '',
     category: 'ALL',
-    status: 'ALL'
+    status: 'ALL',
+    difficulty: 'ALL'
   });
 
   // Load boosted cases
@@ -46,8 +47,9 @@ export const ExploreCases: React.FC = () => {
     const matchesStatus = filter.status === 'ALL' || 
                           (filter.status === 'RESOLVED' && c.status === 'RESOLVED') ||
                           (filter.status === 'OPEN' && (c.status === 'OPEN' || c.status === 'INVESTIGATING'));
+    const matchesDifficulty = filter.difficulty === 'ALL' || String((c as any).difficulty_rating) === filter.difficulty;
     
-    return matchesSearch && matchesCategory && matchesStatus;
+    return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty;
   });
 
   const isBoosted = (caseId: string) => {
@@ -115,7 +117,7 @@ export const ExploreCases: React.FC = () => {
          </div>
          
          {/* Filters Bar */}
-         <div className="max-w-7xl mx-auto w-full mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+         <div className="max-w-7xl mx-auto w-full mt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
              <div className="md:col-span-2 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
                 <input 
@@ -148,6 +150,20 @@ export const ExploreCases: React.FC = () => {
                   <option value="ALL">All Statuses</option>
                   <option value="OPEN">Open</option>
                   <option value="RESOLVED">Resolved</option>
+                </select>
+             </div>
+             <div>
+               <select 
+                  value={filter.difficulty}
+                  onChange={(e) => setFilter({...filter, difficulty: e.target.value})}
+                  className="w-full bg-mystery-800 border border-mystery-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-mystery-500"
+                >
+                  <option value="ALL">All Difficulties</option>
+                  <option value="1">Easy (★☆☆☆☆)</option>
+                  <option value="2">Simple (★★☆☆☆)</option>
+                  <option value="3">Medium (★★★☆☆)</option>
+                  <option value="4">Hard (★★★★☆)</option>
+                  <option value="5">Impossible (★★★★★)</option>
                 </select>
              </div>
          </div>
@@ -218,6 +234,21 @@ export const ExploreCases: React.FC = () => {
                       <div className="p-6">
                         <h3 className="text-xl font-bold text-white mb-2 line-clamp-1">{c.title}</h3>
                         <p className="text-gray-400 text-sm mb-4 line-clamp-2 h-10">{c.description}</p>
+                        
+                        {/* Difficulty Rating */}
+                        {(c as any).difficulty_rating && (
+                          <div className="flex items-center gap-1 mb-3">
+                            <span className="text-xs text-gray-500 mr-1">Difficulty:</span>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span 
+                                key={i} 
+                                className={`text-lg ${i < (c as any).difficulty_rating ? 'text-yellow-400' : 'text-gray-700'}`}
+                              >
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         
                         <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-mystery-700 text-xs text-gray-500">
                           <div className="flex items-center gap-2">

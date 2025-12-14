@@ -11,6 +11,15 @@ import { verificationService } from '../services/verificationService';
 import { BoostAnalyticsDashboard } from './BoostAnalyticsDashboard';
 import { DirectMessageModal } from './DirectMessageModal';
 
+// Helper function to get rank based on reputation
+const getReputationRank = (reputation: number): { rank: string; color: string; icon: string } => {
+  if (reputation >= 10000) return { rank: 'Legend', color: '#fbbf24', icon: '🏆' };
+  if (reputation >= 5000) return { rank: 'Master Investigator', color: '#a855f7', icon: '👑' };
+  if (reputation >= 2000) return { rank: 'Expert', color: '#3b82f6', icon: '⭐' };
+  if (reputation >= 500) return { rank: 'Experienced', color: '#10b981', icon: '✨' };
+  return { rank: 'Novice', color: '#6b7280', icon: '🌱' };
+};
+
 export const UserProfile: React.FC = () => {
   const { username } = useParams<{ username?: string }>();
   const { profile: currentUserProfile, user } = useAuth();
@@ -38,6 +47,8 @@ export const UserProfile: React.FC = () => {
   const [followCount, setFollowCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [followingActivity, setFollowingActivity] = useState<any[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
 
   // Load profile based on username parameter or current user
   useEffect(() => {
@@ -258,6 +269,61 @@ export const UserProfile: React.FC = () => {
     
     loadFollowCounts();
   }, [profile?.id]);
+
+  // Load following activity (only for own profile)
+  useEffect(() => {
+    if (!isOwnProfile || !currentUserProfile?.id || activeTab !== 'activity') return;
+    
+    const loadFollowingActivity = async () => {
+      try {
+        setLoadingActivity(true);
+        
+        // Get list of users we follow
+        const { data: followedUsers } = await supabase
+          .from('user_follows')
+          .select('following_id')
+          .eq('follower_id', currentUserProfile.id);
+        
+        if (!followedUsers || followedUsers.length === 0) {
+          setFollowingActivity([]);
+          return;
+        }
+        
+        const followedIds = followedUsers.map(f => f.following_id);
+        
+        // Get recent cases from followed users
+        const { data: recentCases } = await supabase
+          .from('cases')
+          .select('id, title, description, category, media_urls, created_at, user_id, profiles!cases_user_id_fkey(username, avatar_url)')
+          .in('user_id', followedIds)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        // Get recent comments from followed users
+        const { data: recentComments } = await supabase
+          .from('comments')
+          .select('id, content, created_at, user_id, case_id, profiles!comments_user_id_fkey(username, avatar_url), cases!comments_case_id_fkey(title)')
+          .in('user_id', followedIds)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        // Combine and sort by date
+        const activities = [
+          ...(recentCases || []).map(c => ({ type: 'case', data: c, timestamp: c.created_at })),
+          ...(recentComments || []).map(c => ({ type: 'comment', data: c, timestamp: c.created_at }))
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 15);
+        
+        setFollowingActivity(activities);
+      } catch (error) {
+        console.error('Failed to load following activity:', error);
+      } finally {
+        setLoadingActivity(false);
+      }
+    };
+    
+    loadFollowingActivity();
+  }, [isOwnProfile, currentUserProfile?.id, activeTab]);
 
   if (!profile || !user) {
     return (
@@ -503,17 +569,39 @@ export const UserProfile: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-mystery-700">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-6 border-t border-mystery-700">
             <div className="text-center">
               <div className="text-2xl font-bold text-mystery-400 mb-1">
                 {profile.role === 'investigator' ? investigatorStats.reputation : (profile.reputation || 0)}
               </div>
-              <div className="text-sm text-gray-500">Reputation</div>
+              <div className="text-sm text-gray-500 mb-2">Reputation</div>
+              {(() => {
+                const rep = profile.role === 'investigator' ? investigatorStats.reputation : (profile.reputation || 0);
+                const rankInfo = getReputationRank(rep);
+                return (
+                  <div 
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold"
+                    style={{ backgroundColor: `${rankInfo.color}20`, color: rankInfo.color }}
+                  >
+                    <span>{rankInfo.icon}</span>
+                    <span>{rankInfo.rank}</span>
+                  </div>
+                );
+              })()}
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-mystery-400 mb-1">{userCases.length}</div>
               <div className="text-sm text-gray-500">Cases Submitted</div>
             </div>
+            {/* Login Streak prominently in header */}
+            {streaks && streaks.progress > 0 && (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-400 mb-1 flex items-center justify-center gap-1">
+                  🔥 {streaks.progress}
+                </div>
+                <div className="text-sm text-gray-500">Day Streak</div>
+              </div>
+            )}
             <div className="text-center">
               <div className="text-2xl font-bold text-mystery-400 mb-1">{followCount}</div>
               <div className="text-sm text-gray-500">Following</div>
@@ -886,9 +974,87 @@ export const UserProfile: React.FC = () => {
           )}
 
           {activeTab === 'activity' && (
-            <div className="text-center py-12">
-              <p className="text-gray-400">No recent activity</p>
-            </div>
+            loadingActivity ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400">Loading activity...</p>
+              </div>
+            ) : followingActivity.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400 mb-2">No recent activity from users you follow</p>
+                <p className="text-gray-500 text-sm">Follow other users to see their activity here</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white mb-4">Following Activity</h3>
+                {followingActivity.map((activity, idx) => (
+                  <div key={`${activity.type}-${activity.data.id}-${idx}`} className="bg-mystery-700/50 rounded-lg p-4 border border-mystery-600">
+                    {activity.type === 'case' ? (
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
+                            {activity.data.profiles?.avatar_url ? (
+                              <img src={activity.data.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="w-5 h-5 text-gray-500" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-400 mb-2">
+                            <Link to={`/profile/${activity.data.profiles?.username}`} className="text-mystery-400 hover:text-mystery-300 font-medium">
+                              {activity.data.profiles?.username || 'User'}
+                            </Link>
+                            {' '}submitted a new case
+                            <span className="text-gray-500 ml-2">{format(new Date(activity.data.created_at), 'MMM d, yyyy')}</span>
+                          </p>
+                          <Link to={`/cases/${activity.data.id}`} className="block hover:opacity-80 transition">
+                            <div className="flex gap-3">
+                              {activity.data.media_urls?.[0] && (
+                                <img src={activity.data.media_urls[0]} alt="" className="w-20 h-20 rounded object-cover" />
+                              )}
+                              <div>
+                                <h4 className="font-medium text-white mb-1">{activity.data.title}</h4>
+                                <p className="text-sm text-gray-400 line-clamp-2">{activity.data.description}</p>
+                                <span className="inline-block mt-2 text-xs px-2 py-1 bg-mystery-600 text-mystery-300 rounded capitalize">
+                                  {activity.data.category}
+                                </span>
+                              </div>
+                            </div>
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex gap-4">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
+                            {activity.data.profiles?.avatar_url ? (
+                              <img src={activity.data.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="w-5 h-5 text-gray-500" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-400 mb-2">
+                            <Link to={`/profile/${activity.data.profiles?.username}`} className="text-mystery-400 hover:text-mystery-300 font-medium">
+                              {activity.data.profiles?.username || 'User'}
+                            </Link>
+                            {' '}commented on{' '}
+                            <Link to={`/cases/${activity.data.case_id}`} className="text-white hover:text-mystery-400">
+                              {activity.data.cases?.title || 'a case'}
+                            </Link>
+                            <span className="text-gray-500 ml-2">{format(new Date(activity.data.created_at), 'MMM d, yyyy')}</span>
+                          </p>
+                          <p className="text-sm text-gray-300 bg-mystery-800/50 rounded p-3 border-l-2 border-mystery-500">
+                            {activity.data.content}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
           )}
 
           {activeTab === 'boost-analytics' && (

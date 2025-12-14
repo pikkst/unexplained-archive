@@ -6,6 +6,15 @@ import { Menu, Search, Bell, LogOut, User as UserIcon, Heart, MessageCircle, Tro
 import { getNotifications, getUnreadCount, markNotificationRead, subscribeToNotifications, Notification } from '../services/notificationService';
 import { getUnreadMessageCount } from '../services/notificationService';
 
+// Helper function to get rank based on reputation
+const getReputationRank = (reputation: number): { rank: string; color: string; icon: string } => {
+  if (reputation >= 10000) return { rank: 'Legend', color: '#fbbf24', icon: '🏆' };
+  if (reputation >= 5000) return { rank: 'Master Investigator', color: '#a855f7', icon: '👑' };
+  if (reputation >= 2000) return { rank: 'Expert', color: '#3b82f6', icon: '⭐' };
+  if (reputation >= 500) return { rank: 'Experienced', color: '#10b981', icon: '✨' };
+  return { rank: 'Novice', color: '#6b7280', icon: '🌱' };
+};
+
 export const Navbar: React.FC = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -231,7 +240,27 @@ export const Navbar: React.FC = () => {
 
                     {/* Dropdown */}
                     <div className="absolute right-0 mt-2 w-48 bg-mystery-800 rounded-lg shadow-xl border border-mystery-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-                      <Link to="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-mystery-700 hover:text-white rounded-t-lg">
+                      {/* Reputation Display */}
+                      <div className="px-4 py-3 border-b border-mystery-700">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">Reputation</span>
+                          <span className="text-sm font-bold text-mystery-400">{profile?.reputation || 0}</span>
+                        </div>
+                        {(() => {
+                          const rankInfo = getReputationRank(profile?.reputation || 0);
+                          return (
+                            <div 
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold"
+                              style={{ backgroundColor: `${rankInfo.color}20`, color: rankInfo.color }}
+                            >
+                              <span>{rankInfo.icon}</span>
+                              <span>{rankInfo.rank}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      
+                      <Link to="/profile" className="block px-4 py-2 text-sm text-gray-300 hover:bg-mystery-700 hover:text-white">
                         My Profile
                       </Link>
                       <Link to="/wallet" className="block px-4 py-2 text-sm text-gray-300 hover:bg-mystery-700 hover:text-white flex items-center gap-2">
