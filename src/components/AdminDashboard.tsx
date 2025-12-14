@@ -441,7 +441,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           views,
           reply_count,
           category,
-          profiles:author_id (
+          profiles:user_id (
             id,
             username,
             avatar_url
