@@ -1585,6 +1585,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           {/* Analytics & SEO Tab */}
           {activeTab === 'analytics' && (
             <>
+              {/* Data Collection Notice */}
+              {analyticsData.pageViews === 0 && analyticsData.uniqueVisitors === 0 && (
+                <div className="mb-6 bg-blue-900/30 border border-blue-700 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-blue-300 font-medium mb-1">📊 Data Collection in Progress</p>
+                      <p className="text-blue-200/80 text-sm">
+                        Google Analytics is now active and tracking visitors. Real data will appear here within 24-48 hours. 
+                        The tracking code is working correctly on your site.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Analytics Stats */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
@@ -1833,6 +1849,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                           body: { action: 'fetch_search_console' }
                         });
 
+                        if (error) {
+                          console.error('Search Console API error:', error);
+                          alert('❌ Search Console API error. Please enable Google Search Console API:\n\n1. Visit: https://console.developers.google.com/apis/api/searchconsole.googleapis.com/overview?project=516314287582\n2. Click "Enable API"\n3. Wait 2 minutes and try again');
+                          return;
+                        }
+                        
+                        if (!searchData?.success) {
+                          console.error('Search Console returned error:', searchData?.error);
+                          const errorMsg = searchData?.error || 'Unknown error';
+                          
+                          if (errorMsg.includes('SERVICE_DISABLED') || errorMsg.includes('not been used')) {
+                            alert('❌ Search Console API not enabled!\n\n1. Visit: https://console.developers.google.com/apis/api/searchconsole.googleapis.com/overview?project=516314287582\n2. Click "Enable API"\n3. Wait 2 minutes and try again');
+                          } else if (errorMsg.includes('not configured')) {
+                            alert('⚠️ Search Console site not verified. Please:\n\n1. Visit https://search.google.com/search-console\n2. Add property: unexplainedarchive.com\n3. Verify ownership\n4. Try again in 24 hours');
+                          } else {
+                            alert(`❌ Search Console error:\n${errorMsg.substring(0, 200)}`);
+                          }
+                          return;
+                        }
+
                         if (searchData?.success && searchData.data?.length > 0) {
                           // Auto-import Search Console data to SEO rankings table
                           for (const item of searchData.data.slice(0, 20)) { // Top 20
@@ -1853,11 +1889,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                           await loadSeoRankings();
                           alert(`✅ Imported ${searchData.data.length} rankings from Google Search Console!`);
                         } else {
-                          alert('⚠️ Google Search Console API not configured or no data available');
+                          alert('⚠️ No data available yet. Search Console needs 48-72h to collect data after site verification.');
                         }
                       } catch (error) {
                         console.error('Failed to import Search Console data:', error);
-                        alert('❌ Failed to import. Check console for details.');
+                        alert('❌ Failed to import. Check browser console for details.');
                       }
                     }}
                     className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
