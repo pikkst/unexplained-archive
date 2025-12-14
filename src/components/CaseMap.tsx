@@ -94,10 +94,8 @@ export const CaseMap: React.FC<CaseMapProps> = ({
     try {
       if (!document.fullscreenElement) {
         await mapWrapperRef.current.requestFullscreen();
-        setIsFullscreen(true);
       } else {
         await document.exitFullscreen();
-        setIsFullscreen(false);
       }
     } catch (error) {
       console.error('Error toggling fullscreen:', error);
@@ -106,13 +104,16 @@ export const CaseMap: React.FC<CaseMapProps> = ({
 
   // Listen for fullscreen changes (e.g., ESC key)
   useEffect(() => {
+    // Delay for map to properly recalculate its size after fullscreen transition
+    const MAP_RESIZE_DELAY_MS = 100;
+    
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
-      // Invalidate map size to ensure proper rendering
+      // Invalidate map size to ensure proper rendering after fullscreen changes
       if (mapInstanceRef.current) {
         setTimeout(() => {
           mapInstanceRef.current.invalidateSize();
-        }, 100);
+        }, MAP_RESIZE_DELAY_MS);
       }
     };
 
