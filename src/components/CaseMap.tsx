@@ -136,7 +136,15 @@ export const CaseMap: React.FC<CaseMapProps> = ({
       if (!mapInstanceRef.current) {
         try {
           mapInstanceRef.current = L.map(mapContainerRef.current, {
-            zoomControl: false
+            zoomControl: false,
+            maxZoom: 19,
+            minZoom: 2,
+            tap: true,
+            tapTolerance: 15,
+            touchZoom: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            boxZoom: true
           }).setView([20, 0], 3);
           
           L.control.zoom({
@@ -147,7 +155,8 @@ export const CaseMap: React.FC<CaseMapProps> = ({
           L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
             subdomains: 'abcd',
-            maxZoom: 19
+            maxZoom: 20,
+            maxNativeZoom: 19
           }).addTo(mapInstanceRef.current);
 
           // Handle Zoom Events
