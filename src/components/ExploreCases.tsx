@@ -18,8 +18,13 @@ export const ExploreCases: React.FC = () => {
     search: '',
     category: 'ALL',
     status: 'ALL',
-    difficulty: 'ALL'
+    difficulty: 'ALL',
+    dateFrom: '',
+    dateTo: '',
+    locationRadius: 'ALL',
+    multipleCategories: [] as string[]
   });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Calculate trending status
   const isTrending = (caseItem: any) => {
@@ -55,13 +60,34 @@ export const ExploreCases: React.FC = () => {
   const filteredCases = sortedCases().filter(c => {
     const matchesSearch = c.title.toLowerCase().includes(filter.search.toLowerCase()) || 
                           c.location.toLowerCase().includes(filter.search.toLowerCase());
-    const matchesCategory = filter.category === 'ALL' || c.category === filter.category;
+    
+    // Category filter - support both single and multiple categories
+    let matchesCategory = true;
+    if (filter.multipleCategories.length > 0) {
+      matchesCategory = filter.multipleCategories.includes(c.category);
+    } else if (filter.category !== 'ALL') {
+      matchesCategory = c.category === filter.category;
+    }
+    
     const matchesStatus = filter.status === 'ALL' || 
                           (filter.status === 'RESOLVED' && c.status === 'RESOLVED') ||
                           (filter.status === 'OPEN' && (c.status === 'OPEN' || c.status === 'INVESTIGATING'));
     const matchesDifficulty = filter.difficulty === 'ALL' || String((c as any).difficulty_rating) === filter.difficulty;
     
-    return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty;
+    // Date range filter
+    let matchesDateRange = true;
+    if (filter.dateFrom) {
+      matchesDateRange = matchesDateRange && new Date(c.createdAt) >= new Date(filter.dateFrom);
+    }
+    if (filter.dateTo) {
+      matchesDateRange = matchesDateRange && new Date(c.createdAt) <= new Date(filter.dateTo);
+    }
+    
+    // Location radius filter (placeholder - would need user's location)
+    // For now, just pass through
+    const matchesLocation = true;
+    
+    return matchesSearch && matchesCategory && matchesStatus && matchesDifficulty && matchesDateRange && matchesLocation;
   });
 
   const isBoosted = (caseId: string) => {
@@ -179,6 +205,111 @@ export const ExploreCases: React.FC = () => {
                 </select>
              </div>
          </div>
+         
+         {/* Advanced Filters Toggle */}
+         <div className="max-w-7xl mx-auto w-full mt-3">
+           <button
+             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+             className="flex items-center gap-2 text-sm text-mystery-400 hover:text-mystery-300 transition-colors"
+           >
+             <Filter className="w-4 h-4" />
+             {showAdvancedFilters ? 'Hide' : 'Show'} Advanced Filters
+           </button>
+         </div>
+         
+         {/* Advanced Filters Panel */}
+         {showAdvancedFilters && (
+           <div className="max-w-7xl mx-auto w-full mt-4 bg-mystery-800 border border-mystery-700 rounded-lg p-4">
+             <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+               <Filter className="w-4 h-4" />
+               Advanced Filters
+             </h3>
+             
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               {/* Date Range */}
+               <div>
+                 <label className="block text-sm text-gray-400 mb-2">Date From</label>
+                 <input
+                   type="date"
+                   value={filter.dateFrom}
+                   onChange={(e) => setFilter({...filter, dateFrom: e.target.value})}
+                   className="w-full bg-mystery-900 border border-mystery-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mystery-500"
+                 />
+               </div>
+               
+               <div>
+                 <label className="block text-sm text-gray-400 mb-2">Date To</label>
+                 <input
+                   type="date"
+                   value={filter.dateTo}
+                   onChange={(e) => setFilter({...filter, dateTo: e.target.value})}
+                   className="w-full bg-mystery-900 border border-mystery-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mystery-500"
+                 />
+               </div>
+               
+               <div>
+                 <label className="block text-sm text-gray-400 mb-2">Location Radius</label>
+                 <select
+                   value={filter.locationRadius}
+                   onChange={(e) => setFilter({...filter, locationRadius: e.target.value})}
+                   className="w-full bg-mystery-900 border border-mystery-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-mystery-500"
+                 >
+                   <option value="ALL">All Locations</option>
+                   <option value="10">Within 10 km</option>
+                   <option value="50">Within 50 km</option>
+                   <option value="100">Within 100 km</option>
+                   <option value="500">Within 500 km</option>
+                 </select>
+               </div>
+             </div>
+             
+             {/* Multiple Categories */}
+             <div className="mt-4">
+               <label className="block text-sm text-gray-400 mb-2">Multiple Categories (Select all that apply)</label>
+               <div className="flex flex-wrap gap-2">
+                 {['UFO', 'Cryptid', 'Paranormal', 'Supernatural', 'Mystery Location'].map(cat => (
+                   <button
+                     key={cat}
+                     onClick={() => {
+                       const current = filter.multipleCategories;
+                       if (current.includes(cat)) {
+                         setFilter({...filter, multipleCategories: current.filter(c => c !== cat)});
+                       } else {
+                         setFilter({...filter, multipleCategories: [...current, cat]});
+                       }
+                     }}
+                     className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                       filter.multipleCategories.includes(cat)
+                         ? 'bg-mystery-500 text-white'
+                         : 'bg-mystery-900 text-gray-400 hover:bg-mystery-700'
+                     }`}
+                   >
+                     {cat}
+                   </button>
+                 ))}
+               </div>
+             </div>
+             
+             {/* Clear Filters Button */}
+             <div className="mt-4 flex justify-end">
+               <button
+                 onClick={() => setFilter({
+                   search: '',
+                   category: 'ALL',
+                   status: 'ALL',
+                   difficulty: 'ALL',
+                   dateFrom: '',
+                   dateTo: '',
+                   locationRadius: 'ALL',
+                   multipleCategories: []
+                 })}
+                 className="px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg text-sm transition-colors"
+               >
+                 Clear All Filters
+               </button>
+             </div>
+           </div>
+         )}
       </div>
 
       {/* Content Area */}
