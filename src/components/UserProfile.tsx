@@ -562,10 +562,13 @@ export const UserProfile: React.FC = () => {
               )}
 
               <div className="flex items-center gap-4 text-sm text-gray-500">
-                <div className="flex items-center gap-1">
-                  <Mail className="w-4 h-4" />
-                  {user.email}
-                </div>
+                {/* Only show email on own profile, or if profile owner has made it public */}
+                {isOwnProfile && user?.email && (
+                  <div className="flex items-center gap-1">
+                    <Mail className="w-4 h-4" />
+                    {user.email}
+                  </div>
+                )}
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   Joined {format(new Date(profile.created_at), 'MMM yyyy')}
@@ -1237,7 +1240,7 @@ export const UserProfile: React.FC = () => {
             )
           )}
 
-          {activeTab === 'boost-analytics' && (
+          {activeTab === 'boost-analytics' && isOwnProfile && user?.id && (
             <BoostAnalyticsDashboard userId={user.id} />
           )}
 
