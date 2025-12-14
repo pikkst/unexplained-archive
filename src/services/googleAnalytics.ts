@@ -4,7 +4,7 @@
  */
 
 const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
-const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-BSNYJW4KV8';
+const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-XYPKB6D84C';
 const GA_PROPERTY_ID = ''; // Format: properties/123456789
 
 interface AnalyticsData {
