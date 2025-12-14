@@ -36,9 +36,10 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Insufficient balance');
   END IF;
 
-  -- 2. Calculate fees (10% platform fee)
-  v_platform_fee := p_amount * 0.10;
-  v_net_donation := p_amount - v_platform_fee;
+  -- 2. NO PLATFORM FEE for wallet donations (internal transfer, no Stripe cost)
+  -- 100% of the donation goes to the case
+  v_platform_fee := 0;
+  v_net_donation := p_amount;
 
   -- 3. Start transaction
   --    a. Decrement user's wallet
@@ -46,38 +47,23 @@ BEGIN
   SET balance = balance - p_amount
   WHERE id = v_wallet.id;
 
-  --    b. Update case reward_amount (visible to users)
+  --    b. Update case reward_amount (visible to users) - full amount
   UPDATE cases
   SET reward_amount = COALESCE(reward_amount, 0) + v_net_donation,
       updated_at = NOW()
   WHERE id = p_case_id;
 
-  --    c. Log the transactions for auditing
-  --      i. Main donation transaction
+  --    c. Log the donation transaction
   INSERT INTO transactions (
     user_id, from_wallet_id, case_id, amount, transaction_type, status, 
     metadata, completed_at
   )
   VALUES (
-    p_user_id, v_wallet.id, p_case_id, v_net_donation, 'donation', 'completed', 
+    p_user_id, v_wallet.id, p_case_id, p_amount, 'donation', 'completed', 
     jsonb_build_object(
-      'description', 'Donation from wallet to case',
-      'platform_fee', v_platform_fee,
-      'gross_amount', p_amount
-    ),
-    NOW()
-  );
-
-  --      ii. Fee transaction
-  INSERT INTO transactions (
-    user_id, from_wallet_id, case_id, amount, transaction_type, status, 
-    metadata, completed_at
-  )
-  VALUES (
-    p_user_id, v_wallet.id, p_case_id, v_platform_fee, 'platform_fee', 'completed', 
-    jsonb_build_object(
-      'description', 'Platform fee for wallet donation',
-      'source_transaction', 'donation'
+      'description', 'Donation from wallet to case (no fee - internal transfer)',
+      'platform_fee', 0,
+      'net_amount', p_amount
     ),
     NOW()
   );

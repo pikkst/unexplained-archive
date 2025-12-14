@@ -54,10 +54,21 @@ Deno.serve(async (req) => {
   try {
     const { caseId, amount, userId, successUrl, cancelUrl } = await req.json();
 
+    console.log('Payment checkout request:', { caseId, amount, userId, hasSuccessUrl: !!successUrl, hasCancelUrl: !!cancelUrl });
+
     // Validate input
-    if (!caseId || !amount || !userId || amount < 5) {
+    if (!caseId || !amount || !userId) {
+      console.error('Missing required fields:', { caseId: !!caseId, amount: !!amount, userId: !!userId });
       return new Response(
-        JSON.stringify({ error: 'Invalid input. Minimum amount is €5.' }),
+        JSON.stringify({ error: 'Missing required fields: caseId, amount, and userId are required.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (amount < 5) {
+      console.error('Amount too small:', amount);
+      return new Response(
+        JSON.stringify({ error: 'Minimum payment amount is €5.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -65,14 +76,23 @@ Deno.serve(async (req) => {
     // Get auth token from request
     const authHeader = req.headers.get('Authorization') || '';
 
-    // Determine if this is a wallet deposit or case donation
+    // Determine payment type
     const isWalletDeposit = caseId === 'wallet_deposit';
+    const isPlatformDonation = caseId === 'platform';
     let productName = 'Wallet Deposit';
     let productDescription = `Add €${amount.toFixed(2)} to your wallet`;
     let platformFee = 0;
     let netAmount = amount;
 
-    if (!isWalletDeposit) {
+    // Platform donation: all money goes to platform (0% fee)
+    if (isPlatformDonation) {
+      productName = 'Platform Support';
+      productDescription = `Support Unexplained Archive platform development: €${amount.toFixed(2)}`;
+      platformFee = 0;
+      netAmount = amount;
+    }
+
+    if (!isWalletDeposit && !isPlatformDonation) {
       // Verify case using Supabase REST API (no SDK)
       const caseResponse = await fetch(
         `${SUPABASE_URL}/rest/v1/cases?id=eq.${caseId}&select=id,title,status`,
@@ -120,6 +140,15 @@ Deno.serve(async (req) => {
     // Per the architecture, all wallet deposits and case donations go to the Operations account
     const destinationAccountId = STRIPE_OPERATIONS_ACCOUNT_ID;
 
+    console.log('Creating Stripe session:', { 
+      isWalletDeposit, 
+      amount, 
+      platformFee, 
+      netAmount, 
+      productName,
+      destinationAccountId: destinationAccountId.substring(0, 10) + '...'
+    });
+
     // Create Stripe Checkout Session using native fetch
     const session = await createStripeCheckoutSession({
       'mode': 'payment',
@@ -129,8 +158,8 @@ Deno.serve(async (req) => {
       'line_items[0][price_data][product_data][description]': productDescription,
       'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(),
       'line_items[0][quantity]': '1',
-      'success_url': successUrl || `${req.headers.get('origin')}${isWalletDeposit ? '/wallet?deposit=success' : `/cases/${caseId}?donation=success`}`,
-      'cancel_url': cancelUrl || `${req.headers.get('origin')}${isWalletDeposit ? '/wallet?deposit=canceled' : `/cases/${caseId}?donation=canceled`}`,
+      'success_url': successUrl || `${req.headers.get('origin')}${isWalletDeposit ? '/wallet?deposit=success' : isPlatformDonation ? '/donation?success=platform' : `/cases/${caseId}?donation=success`}`,
+      'cancel_url': cancelUrl || `${req.headers.get('origin')}${isWalletDeposit ? '/wallet?deposit=canceled' : isPlatformDonation ? '/donation?canceled' : `/cases/${caseId}?donation=canceled`}`,
       'metadata[caseId]': caseId,
       'metadata[userId]': userId,
       'metadata[type]': isWalletDeposit ? 'wallet_deposit' : 'donation',
@@ -144,6 +173,8 @@ Deno.serve(async (req) => {
       'payment_intent_data[metadata][amount]': amount.toString(),
     }, destinationAccountId);
 
+    console.log('Stripe session created:', { sessionId: session.id, hasUrl: !!session.url });
+
     return new Response(
       JSON.stringify({
         sessionId: session.id,
@@ -152,10 +183,30 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('Error creating checkout session:', error);
+  } catch (error: any) {
+    console.error('Error creating checkout session:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      type: error.type
+    });
+    
+    // Provide user-friendly error messages
+    let errorMessage = 'Payment service error. Please try again.';
+    
+    if (error.message?.includes('Stripe API error')) {
+      errorMessage = 'Payment provider error. Please check your card details.';
+    } else if (error.message?.includes('not found')) {
+      errorMessage = 'Case not found or unavailable.';
+    } else if (error.message?.includes('closed') || error.message?.includes('resolved')) {
+      errorMessage = 'Cannot donate to closed or resolved cases.';
+    }
+
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: errorMessage,
+        details: error.message 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

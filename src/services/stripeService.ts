@@ -26,8 +26,12 @@ export const stripeService = {
     userId: string
   ): Promise<CheckoutSession | null> {
     try {
-      const successUrl = `${window.location.origin}/cases/${caseId}?donation=success`;
-      const cancelUrl = `${window.location.origin}/cases/${caseId}?donation=canceled`;
+      // Ensure proper URL format for mobile devices
+      const origin = window.location.origin || `${window.location.protocol}//${window.location.host}`;
+      const successUrl = `${origin}/cases/${caseId}?donation=success`;
+      const cancelUrl = `${origin}/cases/${caseId}?donation=canceled`;
+
+      console.log('Creating donation payment:', { caseId, amount, userId, origin });
 
       const { data, error } = await supabase.functions.invoke('create-escrow-payment-checkout', {
         body: {
@@ -39,10 +43,24 @@ export const stripeService = {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw error;
+      }
+
+      if (!data || !data.checkoutUrl) {
+        console.error('Invalid response from payment function:', data);
+        throw new Error('Invalid payment session response');
+      }
+
+      console.log('Payment session created successfully:', data.sessionId);
       return data;
-    } catch (err) {
-      console.error('Error creating donation payment:', err);
+    } catch (err: any) {
+      console.error('Error creating donation payment:', {
+        error: err,
+        message: err?.message,
+        details: err?.details || err?.hint
+      });
       return null;
     }
   },
@@ -274,11 +292,19 @@ export const stripeService = {
 
   /**
    * Calculate platform fee
+   * @param amount - Payment amount
+   * @param type - Payment type
+   * @param isPlatformDonation - If true, no fee is charged (money goes to platform development)
    */
-  calculatePlatformFee(amount: number, type: 'donation' | 'case_reward' | 'withdrawal' | 'subscription'): number {
+  calculatePlatformFee(amount: number, type: 'donation' | 'case_reward' | 'withdrawal' | 'subscription', isPlatformDonation: boolean = false): number {
+    // Platform donations: 0% fee (all money goes to platform)
+    if (type === 'donation' && isPlatformDonation) {
+      return 0;
+    }
+
     switch (type) {
       case 'donation':
-        return amount * 0.10; // 10%
+        return amount * 0.10; // 10% for case donations
       case 'case_reward':
         return amount * 0.15; // 15%
       case 'withdrawal':
@@ -293,8 +319,8 @@ export const stripeService = {
   /**
    * Calculate net amount after fees
    */
-  calculateNetAmount(amount: number, type: 'donation' | 'case_reward' | 'withdrawal' | 'subscription'): number {
-    const fee = this.calculatePlatformFee(amount, type);
+  calculateNetAmount(amount: number, type: 'donation' | 'case_reward' | 'withdrawal' | 'subscription', isPlatformDonation: boolean = false): number {
+    const fee = this.calculatePlatformFee(amount, type, isPlatformDonation);
     return amount - fee;
   }
 };

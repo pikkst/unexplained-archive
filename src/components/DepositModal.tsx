@@ -41,7 +41,14 @@ export const DepositModal: React.FC<DepositModalProps> = ({
     }
   }, [isOpen, user, isDonation]);
 
-  const platformFee = stripeService.calculatePlatformFee(amount, 'donation');
+  // Fee logic:
+  // - Platform donations: 0% fee (all goes to platform)
+  // - Case donations via Stripe: 10% fee
+  // - Case donations via wallet: 0% fee (internal transfer)
+  const isPlatformDonation = caseId === 'platform';
+  const platformFee = paymentMethod === 'card' && !isPlatformDonation 
+    ? stripeService.calculatePlatformFee(amount, 'donation', false) 
+    : 0;
   const netAmount = amount - platformFee;
   const canPayWithWallet = walletBalance >= amount;
 
@@ -55,7 +62,15 @@ export const DepositModal: React.FC<DepositModalProps> = ({
   }, [walletBalance, isDonation, canPayWithWallet]);
 
   const handleStripePayment = async () => {
-    if (!user) return;
+    if (!user) {
+      throw new Error('Please log in to continue');
+    }
+
+    if (amount < 5) {
+      throw new Error('Minimum payment amount is €5');
+    }
+
+    console.log('Initiating Stripe payment:', { isDonation, caseId, amount, userId: user.id });
 
     let session;
     if (isDonation) {
@@ -64,9 +79,15 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       session = await stripeService.createDepositCheckout(amount, user.id);
     }
     
-    if (!session || !session.checkoutUrl) {
-      throw new Error('Failed to create payment session');
+    if (!session) {
+      throw new Error('Payment service temporarily unavailable. Please try again.');
     }
+
+    if (!session.checkoutUrl) {
+      throw new Error('Invalid payment session. Please contact support.');
+    }
+
+    console.log('Redirecting to Stripe checkout:', session.checkoutUrl);
     window.location.href = session.checkoutUrl;
   };
 
@@ -82,7 +103,16 @@ export const DepositModal: React.FC<DepositModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || amount < 5) return;
+    
+    if (!user) {
+      setError('Please log in to continue');
+      return;
+    }
+
+    if (amount < 5) {
+      setError('Minimum payment amount is €5');
+      return;
+    }
 
     setProcessing(true);
     setError(null);
@@ -99,8 +129,14 @@ export const DepositModal: React.FC<DepositModalProps> = ({
       }
     } catch (err: any) {
       console.error('Payment error:', err);
-      setError(err.message || 'Payment failed. Please try again.');
+      const errorMessage = err?.message || 'Payment failed. Please try again.';
+      setError(errorMessage);
       setProcessing(false);
+      
+      // Show alert on mobile for better visibility
+      if (/Mobi|Android/i.test(navigator.userAgent)) {
+        alert(`Payment Error: ${errorMessage}`);
+      }
     }
   };
 
@@ -225,7 +261,13 @@ export const DepositModal: React.FC<DepositModalProps> = ({
                 <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3 mb-6 flex gap-3"><AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" /><div className="text-sm text-blue-300"><p className="font-medium mb-1">Secure Payment via Stripe</p><p className="text-xs text-blue-400">You'll be redirected to Stripe's secure checkout. We never store your card details.</p></div></div>
               </>
             ) : (
-               <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3 mb-6 flex gap-3"><AlertCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" /><div className="text-sm text-green-300"><p className="font-medium mb-1">Confirm Wallet Donation</p><p className="text-xs text-green-400">€{amount.toFixed(2)} will be deducted from your wallet and transferred to the case escrow.</p></div></div>
+               <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3 mb-6 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-green-300">
+                  <p className="font-medium mb-1">Confirm Wallet Donation</p>
+                  <p className="text-xs text-green-400">€{amount.toFixed(2)} will be transferred to the case (No fees - 100% goes to reward pool!)</p>
+                </div>
+              </div>
             )}
 
             {/* Error Message */}

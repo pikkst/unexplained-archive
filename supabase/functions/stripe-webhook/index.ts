@@ -146,7 +146,52 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session, supabas
 
   const { type, caseId, userId, amount, platformFee, netAmount, boostType, checkType } = metadata;
 
-  // Handle case donations
+  // Handle platform donations (no fee)
+  if (type === 'donation' && caseId === 'platform') {
+    const amountNum = parseInt(amount);
+
+    // Record transaction - all money goes to platform
+    const { error: txError } = await supabaseAdmin
+      .from('transactions')
+      .insert({
+        transaction_type: 'platform_donation',
+        amount: amountNum,
+        status: 'completed',
+        stripe_payment_intent_id: session.payment_intent as string,
+        user_id: userId,
+        metadata: {
+          userId,
+          stripeSessionId: session.id,
+          description: `Direct platform support donation: €${amountNum}`,
+        },
+      });
+
+    if (txError) {
+      console.error('Error creating platform donation transaction:', txError);
+    }
+
+    // Record full amount as platform revenue (no fee deduction)
+    const { error: revenueError } = await supabaseAdmin
+      .from('platform_revenue')
+      .insert({
+        amount: amountNum,
+        transaction_type: 'platform_donation',
+        reference_id: session.payment_intent as string,
+        metadata: {
+          userId,
+          description: `Direct platform donation (0% fee)`,
+        },
+      });
+
+    if (revenueError) {
+      console.error('Error recording platform donation revenue:', revenueError);
+    }
+
+    console.log(`Platform donation processed: €${amountNum} (no fee)`);
+    return;
+  }
+
+  // Handle case donations (10% fee)
   if (type === 'donation' && caseId) {
     // Process donation to case
     const amountNum = parseInt(amount);

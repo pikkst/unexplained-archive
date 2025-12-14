@@ -226,14 +226,14 @@ TULEMUS: Kasutaja wallet = €80
 
 ## 🔑 VÕTME ERINEVUSED
 
-| Aspekt | Stripe Deposit | Stripe Case Donation | Wallet Platform Donation |
-|--------|---------------|---------------------|------------------------|
-| **Maksemeetod** | 💳 Krediitkaart | 💳 Krediitkaart | 💰 Wallet balance |
-| **Stripe kaasatud?** | ✅ Jah | ✅ Jah | ❌ EI |
-| **Platform Fee** | 0% (kogu summa kasutajale) | 10% (€5 kui €50) | 0% (kogu summa platvormile) |
-| **Escrow?** | ❌ Ei | ✅ Jah (lukustatud) | ❌ Ei |
-| **Raha sihtkoht** | User wallet | Case escrow | Platform wallet (otse) |
-| **Stripe konto** | +€100 | +€50 | €0 (internal) |
+| Aspekt | Stripe Deposit | Stripe Case Donation | Wallet Platform Donation | Wallet Case Donation |
+|--------|---------------|---------------------|------------------------|---------------------|
+| **Maksemeetod** | 💳 Krediitkaart | 💳 Krediitkaart | 💰 Wallet balance | 💰 Wallet balance |
+| **Stripe kaasatud?** | ✅ Jah | ✅ Jah | ❌ EI | ❌ EI |
+| **Platform Fee** | 0% (kogu summa kasutajale) | 10% (€5 kui €50) | 0% (kogu summa platvormile) | **0% (100% case'ile!)** |
+| **Escrow?** | ❌ Ei | ✅ Jah (lukustatud) | ❌ Ei | ✅ Jah |
+| **Raha sihtkoht** | User wallet | Case escrow | Platform wallet (otse) | Case reward pool |
+| **Stripe konto** | +€100 | +€50 | €0 (internal) | €0 (internal) |
 | **Väljavõtmine** | Kasutaja saab hiljem välja võtta | Vabaneb kui case resolved | Platform tulu |
 
 ---
