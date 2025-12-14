@@ -325,11 +325,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           .sort((a, b) => b.visits - a.visits)
           .slice(0, 10);
 
+        // Calculate session duration from session start/end times
+        const sessionTimes: { [key: string]: { start: Date; end: Date } } = {};
+        analyticsEvents.forEach(e => {
+          if (e.session_id) {
+            const eventTime = new Date(e.created_at);
+            if (!sessionTimes[e.session_id]) {
+              sessionTimes[e.session_id] = { start: eventTime, end: eventTime };
+            } else {
+              if (eventTime < sessionTimes[e.session_id].start) {
+                sessionTimes[e.session_id].start = eventTime;
+              }
+              if (eventTime > sessionTimes[e.session_id].end) {
+                sessionTimes[e.session_id].end = eventTime;
+              }
+            }
+          }
+        });
+        
+        const sessionDurations = Object.values(sessionTimes).map(({ start, end }) => 
+          (end.getTime() - start.getTime()) / 1000 // seconds
+        ).filter(d => d > 0); // Only sessions with multiple events
+        
+        const avgDuration = sessionDurations.length > 0
+          ? sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length
+          : 0;
+        const avgSessionDuration = avgDuration > 0 
+          ? `${Math.floor(avgDuration / 60)}m ${Math.floor(avgDuration % 60)}s`
+          : 'N/A';
+
+        // Calculate bounce rate (sessions with only 1 page view)
+        const sessionPages: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.session_id) {
+            sessionPages[e.session_id] = (sessionPages[e.session_id] || 0) + 1;
+          }
+        });
+        const totalSessions = Object.keys(sessionPages).length;
+        const bouncedSessions = Object.values(sessionPages).filter(count => count === 1).length;
+        const bounceRate = totalSessions > 0 
+          ? `${Math.round((bouncedSessions / totalSessions) * 100)}%`
+          : 'N/A';
+
         setAnalyticsData({
           pageViews,
           uniqueVisitors,
-          avgSessionDuration: '3m 24s',
-          bounceRate: '42%',
+          avgSessionDuration,
+          bounceRate,
           topPages,
           trafficSources,
           topCountries
