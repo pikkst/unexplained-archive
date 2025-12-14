@@ -74,6 +74,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   
   // Auto-refresh timer for analytics
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [prevAnalyticsData, setPrevAnalyticsData] = useState(analyticsData);
+
+  // Animated counter hook
+  const useAnimatedCounter = (targetValue: number, duration: number = 1000) => {
+    const [displayValue, setDisplayValue] = useState(targetValue);
+    
+    useEffect(() => {
+      const startValue = displayValue;
+      const difference = targetValue - startValue;
+      const startTime = Date.now();
+      
+      if (difference === 0) return;
+      
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth animation
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        const currentValue = Math.round(startValue + difference * easeOutQuart);
+        
+        setDisplayValue(currentValue);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    }, [targetValue]);
+    
+    return displayValue;
+  };
 
   useEffect(() => {
     loadAdminData();
@@ -98,6 +131,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
 
   const loadAnalytics = async () => {
     try {
+      // Save previous data for animation
+      setPrevAnalyticsData(analyticsData);
+      
       // Try to fetch from Google Analytics API first
       try {
         const { data: gaData, error: gaError } = await supabase.functions.invoke('google-analytics', {
@@ -881,6 +917,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     }
   };
 
+  // Animated Metric Component for live counting
+  const AnimatedMetric: React.FC<{ value: number; suffix?: string }> = ({ value, suffix = '' }) => {
+    const animatedValue = useAnimatedCounter(value, 1500);
+    return <span>{animatedValue.toLocaleString()}{suffix}</span>;
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold text-white mb-8">System Administration</h1>
@@ -1545,36 +1587,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             <>
               {/* Analytics Stats */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
                   <div className="flex items-center gap-3 mb-2">
                     <Eye className="w-5 h-5 text-blue-400" />
                     <p className="text-sm text-gray-400">Page Views</p>
                   </div>
-                  <p className="text-3xl font-bold text-white">{analyticsData.pageViews.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-white">
+                    <AnimatedMetric value={analyticsData.pageViews} />
+                  </p>
+                  {autoRefreshEnabled && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
                   <div className="flex items-center gap-3 mb-2">
                     <Users className="w-5 h-5 text-green-400" />
                     <p className="text-sm text-gray-400">Unique Visitors</p>
                   </div>
-                  <p className="text-3xl font-bold text-white">{analyticsData.uniqueVisitors.toLocaleString()}</p>
+                  <p className="text-3xl font-bold text-white">
+                    <AnimatedMetric value={analyticsData.uniqueVisitors} />
+                  </p>
+                  {autoRefreshEnabled && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
                   <div className="flex items-center gap-3 mb-2">
                     <MousePointer className="w-5 h-5 text-purple-400" />
                     <p className="text-sm text-gray-400">Avg. Session</p>
                   </div>
                   <p className="text-3xl font-bold text-white">{analyticsData.avgSessionDuration}</p>
+                  {autoRefreshEnabled && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700">
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
                   <div className="flex items-center gap-3 mb-2">
                     <TrendingDown className="w-5 h-5 text-orange-400" />
                     <p className="text-sm text-gray-400">Bounce Rate</p>
                   </div>
                   <p className="text-3xl font-bold text-white">{analyticsData.bounceRate}</p>
+                  {autoRefreshEnabled && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
                 </div>
               </div>
 
