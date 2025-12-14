@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Star, Trophy, Calendar, Shield, AlertCircle, Zap, MessageSquare } from 'lucide-react';
+import { User, Mail, Star, Trophy, Calendar, Shield, AlertCircle, Zap, MessageSquare, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProfileModal } from './EditProfileModal';
 import { InvestigatorApplicationForm } from './InvestigatorApplicationForm';
@@ -37,6 +37,7 @@ export const UserProfile: React.FC = () => {
   const [streaks, setStreaks] = useState<any>(null);
   const [followCount, setFollowCount] = useState(0);
   const [followerCount, setFollowerCount] = useState(0);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Load profile based on username parameter or current user
   useEffect(() => {
@@ -710,7 +711,8 @@ export const UserProfile: React.FC = () => {
 
         {/* Tabs */}
         <div className="bg-mystery-800 rounded-lg border border-mystery-700 p-6">
-          <div className="flex gap-4 border-b border-mystery-700 mb-6">
+          {/* Desktop Navigation - Horizontal Tabs */}
+          <div className="hidden md:flex gap-4 border-b border-mystery-700 mb-6">
             <button
               onClick={() => setActiveTab('cases')}
               className={`px-4 py-2 transition-colors flex items-center gap-2 ${
@@ -756,6 +758,72 @@ export const UserProfile: React.FC = () => {
                 </button>
               </>
             )}
+          </div>
+
+          {/* Mobile Navigation - Dropdown Menu */}
+          <div className="md:hidden mb-6">
+            <div className="relative">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="w-full bg-mystery-700 border border-mystery-600 rounded-lg px-4 py-3 flex items-center justify-between text-white"
+              >
+                <div className="flex items-center gap-2">
+                  {activeTab === 'cases' && (
+                    <>{isOwnProfile ? 'My' : `${profile?.username}'s`} Cases ({userCases.length})</>
+                  )}
+                  {activeTab === 'saved' && <>Saved</>}
+                  {activeTab === 'activity' && <>Activity</>}
+                  {activeTab === 'boost-analytics' && (
+                    <><Zap className="w-4 h-4" />Boost Analytics</>
+                  )}
+                </div>
+                <ChevronDown className={`w-5 h-5 transition-transform ${
+                  showMobileMenu ? 'rotate-180' : ''
+                }`} />
+              </button>
+
+              {showMobileMenu && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-mystery-800 border border-mystery-700 rounded-lg shadow-xl z-50">
+                  <button
+                    onClick={() => { setActiveTab('cases'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left hover:bg-mystery-700 transition-colors ${
+                      activeTab === 'cases' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    {isOwnProfile ? 'My' : `${profile?.username}'s`} Cases ({userCases.length})
+                  </button>
+                  {isOwnProfile && (
+                    <>
+                      <button
+                        onClick={() => { setActiveTab('saved'); setShowMobileMenu(false); }}
+                        className={`w-full px-4 py-3 text-left hover:bg-mystery-700 transition-colors ${
+                          activeTab === 'saved' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                        }`}
+                      >
+                        Saved
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('activity'); setShowMobileMenu(false); }}
+                        className={`w-full px-4 py-3 text-left hover:bg-mystery-700 transition-colors ${
+                          activeTab === 'activity' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                        }`}
+                      >
+                        Activity
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('boost-analytics'); setShowMobileMenu(false); }}
+                        className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                          activeTab === 'boost-analytics' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                        }`}
+                      >
+                        <Zap className="w-4 h-4" />
+                        Boost Analytics
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Tab Content */}
