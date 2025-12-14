@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Mail, Star, Trophy, Calendar, Shield, AlertCircle, Zap, MessageSquare, ChevronDown } from 'lucide-react';
+import { User, Mail, Star, Trophy, Calendar, Shield, AlertCircle, Zap, MessageSquare, ChevronDown, Bell, Settings, Save } from 'lucide-react';
 import { format } from 'date-fns';
 import { EditProfileModal } from './EditProfileModal';
 import { InvestigatorApplicationForm } from './InvestigatorApplicationForm';
@@ -32,7 +32,7 @@ export const UserProfile: React.FC = () => {
   const [verificationStatus, setVerificationStatus] = useState<any>(null);
   const [userCases, setUserCases] = useState<any[]>([]);
   const [loadingCases, setLoadingCases] = useState(true);
-  const [activeTab, setActiveTab] = useState<'cases' | 'saved' | 'activity' | 'boost-analytics'>('cases');
+  const [activeTab, setActiveTab] = useState<'cases' | 'saved' | 'activity' | 'boost-analytics' | 'settings'>('cases');
   const [investigatorStats, setInvestigatorStats] = useState({
     reputation: 0,
     casesSolved: 0,
@@ -51,6 +51,9 @@ export const UserProfile: React.FC = () => {
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [savedCases, setSavedCases] = useState<any[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
+  
+  const [notificationPrefs, setNotificationPrefs] = useState<any>(null);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   // Load profile based on username parameter or current user
   useEffect(() => {
@@ -367,6 +370,64 @@ export const UserProfile: React.FC = () => {
     
     loadSavedCases();
   }, [isOwnProfile, currentUserProfile?.id, activeTab]);
+  
+  // Load notification preferences (only for own profile)
+  useEffect(() => {
+    if (!isOwnProfile || !currentUserProfile?.id || activeTab !== 'settings') return;
+    
+    const loadNotificationPrefs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_notification_preferences')
+          .select('*')
+          .eq('user_id', currentUserProfile.id)
+          .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') throw error;
+        
+        if (data) {
+          setNotificationPrefs(data);
+        } else {
+          // Initialize with defaults
+          const { data: newPrefs, error: insertError } = await supabase
+            .from('user_notification_preferences')
+            .insert({ user_id: currentUserProfile.id })
+            .select()
+            .single();
+          
+          if (!insertError && newPrefs) {
+            setNotificationPrefs(newPrefs);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load notification preferences:', err);
+      }
+    };
+    
+    loadNotificationPrefs();
+  }, [isOwnProfile, currentUserProfile?.id, activeTab]);
+  
+  const handleSaveNotificationPrefs = async () => {
+    if (!currentUserProfile?.id || !notificationPrefs) return;
+    
+    try {
+      setSavingPrefs(true);
+      
+      const { error } = await supabase
+        .from('user_notification_preferences')
+        .update(notificationPrefs)
+        .eq('user_id', currentUserProfile.id);
+      
+      if (error) throw error;
+      
+      alert('✅ Notification preferences saved!');
+    } catch (err) {
+      console.error('Failed to save notification preferences:', err);
+      alert('Failed to save preferences');
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
 
   if (!profile || !user) {
     return (
@@ -887,6 +948,17 @@ export const UserProfile: React.FC = () => {
                   <Zap className="w-4 h-4" />
                   Boost Analytics
                 </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`px-4 py-2 transition-colors flex items-center gap-2 ${
+                    activeTab === 'settings'
+                      ? 'text-white border-b-2 border-mystery-500 font-medium'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  Settings
+                </button>
               </>
             )}
           </div>
@@ -906,6 +978,9 @@ export const UserProfile: React.FC = () => {
                   {activeTab === 'activity' && <>Activity</>}
                   {activeTab === 'boost-analytics' && (
                     <><Zap className="w-4 h-4" />Boost Analytics</>
+                  )}
+                  {activeTab === 'settings' && (
+                    <><Shield className="w-4 h-4" />Settings</>
                   )}
                 </div>
                 <ChevronDown className={`w-5 h-5 transition-transform ${
@@ -949,6 +1024,15 @@ export const UserProfile: React.FC = () => {
                       >
                         <Zap className="w-4 h-4" />
                         Boost Analytics
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('settings'); setShowMobileMenu(false); }}
+                        className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                          activeTab === 'settings' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                        }`}
+                      >
+                        <Shield className="w-4 h-4" />
+                        Settings
                       </button>
                     </>
                   )}
@@ -1151,6 +1235,226 @@ export const UserProfile: React.FC = () => {
 
           {activeTab === 'boost-analytics' && (
             <BoostAnalyticsDashboard userId={user.id} />
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && isOwnProfile && notificationPrefs && (
+            <div className="space-y-6">
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-blue-400" />
+                  Email Notifications
+                </h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Case updates</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_case_updates}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_case_updates: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">New messages</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_new_messages}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_new_messages: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">New comments</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_new_comments}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_new_comments: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Mentions</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_mentions}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_mentions: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Case assigned to you</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_case_assigned}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_case_assigned: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Case resolved</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_case_resolved}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_case_resolved: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Reputation & rewards</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_reward_updates}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_reward_updates: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Team invites</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_team_invites}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_team_invites: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Weekly digest</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_weekly_digest}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_weekly_digest: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Marketing & updates</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.email_marketing}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, email_marketing: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-blue-400" />
+                  Push Notifications
+                </h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Case updates</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.push_case_updates}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, push_case_updates: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">New messages</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.push_new_messages}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, push_new_messages: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">New comments</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.push_new_comments}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, push_new_comments: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Mentions</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.push_mentions}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, push_mentions: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between">
+                    <span className="text-gray-300">Case assigned to you</span>
+                    <input
+                      type="checkbox"
+                      checked={notificationPrefs.push_case_assigned}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, push_case_assigned: e.target.checked })}
+                      className="w-5 h-5 rounded border-mystery-600 bg-mystery-700 text-mystery-500 focus:ring-2 focus:ring-mystery-500"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-blue-400" />
+                  Digest Settings
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-300 mb-2">Digest frequency</label>
+                    <select
+                      value={notificationPrefs.digest_frequency}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, digest_frequency: e.target.value })}
+                      className="w-full px-4 py-2 bg-mystery-700 border border-mystery-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-mystery-500"
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="never">Never</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-300 mb-2">Quiet hours start</label>
+                      <input
+                        type="time"
+                        value={notificationPrefs.quiet_hours_start || '22:00'}
+                        onChange={(e) => setNotificationPrefs({ ...notificationPrefs, quiet_hours_start: e.target.value })}
+                        className="w-full px-4 py-2 bg-mystery-700 border border-mystery-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-mystery-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-300 mb-2">Quiet hours end</label>
+                      <input
+                        type="time"
+                        value={notificationPrefs.quiet_hours_end || '08:00'}
+                        onChange={(e) => setNotificationPrefs({ ...notificationPrefs, quiet_hours_end: e.target.value })}
+                        className="w-full px-4 py-2 bg-mystery-700 border border-mystery-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-mystery-500"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    During quiet hours, you won't receive push notifications
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveNotificationPrefs}
+                disabled={savingPrefs}
+                className="w-full px-6 py-3 bg-mystery-600 hover:bg-mystery-500 disabled:bg-mystery-700 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+              >
+                {savingPrefs ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    Save Settings
+                  </>
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>

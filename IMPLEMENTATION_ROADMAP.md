@@ -539,9 +539,10 @@ CREATE TABLE theory_votes (
 
 ---
 
-### [ ] 17. Investigator Team Analytics
+### [✓] 17. Investigator Team Analytics ✅ COMPLETE
 **Time:** 90 min  
-**Location:** InvestigatorDashboard.tsx
+**Location:** TeamDashboard.tsx
+**Status:** Live - Analytics tab with cases per member, success rate, avg resolution time, and contribution charts
 
 ```typescript
 // Add metrics section
@@ -572,9 +573,10 @@ CREATE TABLE theory_votes (
 
 ## PHASE 4: POLISH & OPTIMIZATION (3-4 weeks)
 
-### [ ] 17. Case Submission Templates (USER Feature)
+### [✓] 18. Case Submission Templates (USER Feature) ✅ COMPLETE
 **Time:** 90 min  
 **Location:** SubmitCaseForm.tsx
+**Status:** Live - 5 pre-built templates with guided questions for UFO, Cryptid, Paranormal, Supernatural, Mystery Location
 
 ```sql
 -- Create table
