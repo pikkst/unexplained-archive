@@ -102,6 +102,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
   const [evidenceFiles, setEvidenceFiles] = useState<any[]>([]);
   const [uploadingEvidence, setUploadingEvidence] = useState(false);
   
+  // Similar Cases State
+  const [similarCases, setSimilarCases] = useState<any[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
+  
   // Update notes and proposal when caseData changes
   useEffect(() => {
     if (caseData) {
@@ -203,6 +207,61 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
     };
     detectLang();
   }, [caseData?.description]);
+
+  // Load similar cases
+  useEffect(() => {
+    if (!caseData?.id) return;
+    const loadSimilarCases = async () => {
+      try {
+        setLoadingSimilar(true);
+        
+        // Helper function to calculate distance between two points
+        const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+          const R = 6371; // Earth radius in km
+          const dLat = (lat2 - lat1) * Math.PI / 180;
+          const dLon = (lon2 - lon1) * Math.PI / 180;
+          const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          return R * c;
+        };
+        
+        // Fetch cases with same category
+        const { data: sameCategoryCases, error } = await supabase
+          .from('cases')
+          .select('id, title, description, category, status, media_urls, latitude, longitude, incident_date, created_at')
+          .eq('category', caseData.category)
+          .neq('id', caseData.id)
+          .limit(20);
+        
+        if (error) throw error;
+        
+        // Filter by proximity if location is available
+        let filtered = sameCategoryCases || [];
+        if (caseData.latitude && caseData.longitude) {
+          filtered = filtered
+            .map(c => ({
+              ...c,
+              distance: c.latitude && c.longitude 
+                ? getDistance(caseData.latitude!, caseData.longitude!, c.latitude, c.longitude)
+                : Infinity
+            }))
+            .filter(c => c.distance < 500) // Within 500km
+            .sort((a, b) => a.distance - b.distance);
+        }
+        
+        // Take top 5 results
+        setSimilarCases(filtered.slice(0, 5));
+      } catch (err) {
+        console.error('Failed to load similar cases:', err);
+      } finally {
+        setLoadingSimilar(false);
+      }
+    };
+    loadSimilarCases();
+  }, [caseData?.id, caseData?.category, caseData?.latitude, caseData?.longitude]);
 
   // Load team membership status
   useEffect(() => {
@@ -1676,6 +1735,66 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
           </div>
         </div>
       </div>
+
+      {/* Similar Cases Widget */}
+      {similarCases.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+          <div className="bg-mystery-800 rounded-xl p-6 border border-mystery-700">
+            <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <MapPin className="w-6 h-6 text-mystery-400" />
+              Similar Cases
+            </h3>
+            <p className="text-gray-400 text-sm mb-6">
+              Other cases in the same category {caseData.latitude && caseData.longitude && 'and nearby location'}
+            </p>
+            
+            {loadingSimilar ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-mystery-400 mx-auto"></div>
+                <p className="text-gray-500 mt-2 text-sm">Loading similar cases...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {similarCases.map((similarCase: any) => (
+                  <div
+                    key={similarCase.id}
+                    onClick={() => navigate(`/cases/${similarCase.id}`)}
+                    className="bg-mystery-700/50 rounded-lg border border-mystery-600 hover:border-mystery-500 p-4 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 group"
+                  >
+                    {similarCase.media_urls?.[0] && (
+                      <div className="w-full h-32 mb-3 rounded-lg overflow-hidden">
+                        <img 
+                          src={similarCase.media_urls[0]} 
+                          alt={similarCase.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                      </div>
+                    )}
+                    <h4 className="font-semibold text-white mb-2 line-clamp-2 group-hover:text-mystery-400 transition-colors">
+                      {similarCase.title}
+                    </h4>
+                    <p className="text-gray-400 text-xs mb-3 line-clamp-2">
+                      {similarCase.description}
+                    </p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        similarCase.status === 'RESOLVED' ? 'bg-green-500/20 text-green-400' :
+                        similarCase.status === 'INVESTIGATING' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-yellow-500/20 text-yellow-400'
+                      }`}>
+                        {similarCase.status}
+                      </span>
+                      <span className="text-gray-500">
+                        {new Date(similarCase.incident_date || similarCase.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Rating Modal */}
       {showRatingModal && (

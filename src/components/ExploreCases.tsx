@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Case } from '../types';
 import { useCases } from '../hooks/useCases';
-import { Search, MapPin, Calendar, Filter, Eye, Map as MapIcon, List, Bot, Zap } from 'lucide-react';
+import { Search, MapPin, Calendar, Filter, Eye, Map as MapIcon, List, Bot, Zap, TrendingUp } from 'lucide-react';
 import { CaseMap } from './CaseMap';
 import { MapAnalysisAgent } from './MapAnalysisAgent';
 import { boostService } from '../services/boostService';
@@ -20,6 +20,18 @@ export const ExploreCases: React.FC = () => {
     status: 'ALL',
     difficulty: 'ALL'
   });
+
+  // Calculate trending status
+  const isTrending = (caseItem: any) => {
+    if (!caseItem.views || !caseItem.created_at) return false;
+    
+    const caseAge = (Date.now() - new Date(caseItem.created_at).getTime()) / (1000 * 60 * 60 * 24); // days
+    const avgViewsPerDay = caseItem.views / Math.max(caseAge, 1);
+    
+    // Case is trending if it gets more than 10 views per day on average
+    // and has been created in the last 30 days
+    return avgViewsPerDay > 10 && caseAge <= 30;
+  };
 
   // Load boosted cases
   useEffect(() => {
@@ -221,10 +233,18 @@ export const ExploreCases: React.FC = () => {
                             </div>
                           )}
                           
+                          {/* Trending Badge */}
+                          {!boosted && isTrending(c) && (
+                            <div className="absolute top-2 left-2 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-md text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-lg">
+                              <TrendingUp className="w-3.5 h-3.5" />
+                              Trending
+                            </div>
+                          )}
+                          
                           <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded text-xs font-bold text-white uppercase tracking-wider">
                             {c.category}
                           </div>
-                          <div className={`absolute ${boosted ? 'top-12' : 'top-2'} left-2 px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
+                          <div className={`absolute ${boosted || isTrending(c) ? 'top-12' : 'top-2'} left-2 px-2 py-1 rounded text-xs font-bold uppercase tracking-wider ${
                             c.status === 'RESOLVED' ? 'bg-green-600/90 text-white' : 
                             c.status === 'INVESTIGATING' ? 'bg-blue-600/90 text-white' : 'bg-yellow-600/90 text-white'
                           }`}>

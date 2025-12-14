@@ -65,10 +65,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const [exporting, setExporting] = useState(false);
   const [publishingArticle, setPublishingArticle] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any | null>(null);
+  
+  // Forum Moderation State
+  const [forumPosts, setForumPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
 
   useEffect(() => {
     loadAdminData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'content') {
+      loadForumPosts();
+    }
+  }, [activeTab]);
 
   const loadAdminData = async () => {
     try {
@@ -357,6 +367,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       }
     } catch (error) {
       console.error('Failed to load articles:', error);
+    }
+  };
+
+  const loadForumPosts = async () => {
+    try {
+      setLoadingPosts(true);
+      const { data, error } = await supabase
+        .from('forum_threads')
+        .select(`
+          id,
+          title,
+          content,
+          created_at,
+          views,
+          reply_count,
+          category,
+          profiles:author_id (
+            id,
+            username,
+            avatar_url
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      setForumPosts(data || []);
+    } catch (error) {
+      console.error('Failed to load forum posts:', error);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  const moderatePost = async (postId: string, action: 'approve' | 'reject' | 'flag') => {
+    try {
+      if (action === 'reject') {
+        const confirmed = confirm('Are you sure you want to delete this post? This action cannot be undone.');
+        if (!confirmed) return;
+        
+        const { error } = await supabase
+          .from('forum_threads')
+          .delete()
+          .eq('id', postId);
+        
+        if (error) throw error;
+        alert('Post deleted successfully');
+      } else if (action === 'flag') {
+        // You could add a flagged column to track flagged posts
+        alert('Post flagged for review');
+      } else {
+        // Approve just means doing nothing - post stays visible
+        alert('Post approved');
+      }
+      
+      await loadForumPosts();
+    } catch (error) {
+      console.error('Failed to moderate post:', error);
+      alert('Failed to moderate post');
     }
   };
 
@@ -1559,6 +1628,79 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           {/* Content Management Tab */}
           {activeTab === 'content' && (
             <>
+              {/* Forum Moderation Section */}
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-mystery-400" />
+                  Forum Post Moderation ({forumPosts.length})
+                </h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  Review and moderate forum posts to maintain community standards
+                </p>
+                
+                {loadingPosts ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-mystery-400 mx-auto mb-2"></div>
+                    <p className="text-gray-500">Loading forum posts...</p>
+                  </div>
+                ) : forumPosts.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No forum posts to moderate</p>
+                ) : (
+                  <div className="space-y-4">
+                    {forumPosts.map((post) => (
+                      <div key={post.id} className="p-4 bg-mystery-900/50 rounded-lg border border-mystery-700">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-white mb-1">{post.title}</h4>
+                            <p className="text-sm text-gray-400 mb-3 line-clamp-3">{post.content}</p>
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {post.profiles?.username || 'Unknown User'}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {post.views || 0} views
+                              </span>
+                              <span>{post.reply_count || 0} replies</span>
+                              <span className="px-2 py-0.5 bg-mystery-700 rounded">
+                                {post.category || 'General'}
+                              </span>
+                              <span>
+                                {new Date(post.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-3 border-t border-mystery-700">
+                          <button
+                            onClick={() => moderatePost(post.id, 'approve')}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => moderatePost(post.id, 'reject')}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
+                          >
+                            <X className="w-4 h-4" />
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => moderatePost(post.id, 'flag')}
+                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white text-sm rounded-lg transition-colors flex items-center gap-1.5"
+                          >
+                            <AlertCircle className="w-4 h-4" />
+                            Flag
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* New Article Form */}
               <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
                 <h3 className="font-bold text-white mb-4 flex items-center gap-2">
