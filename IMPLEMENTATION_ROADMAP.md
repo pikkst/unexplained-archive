@@ -271,9 +271,10 @@ const heatmapData = topCountries.map(country => [
 
 ---
 
-### [ ] 12. Case Category Trends Chart
+### [✓] 12. Case Category Trends Chart ✅ COMPLETE
 **Time:** 90 min  
 **Location:** AdminDashboard.tsx - Analytics tab
+**Status:** Live - Interactive line chart showing 6-month trends for UFO, Cryptid, Paranormal, Supernatural
 
 ```typescript
 // Line chart: UFO vs Cryptid vs Paranormal popularity over time
