@@ -14,7 +14,17 @@
       gtag('js', new Date());
       gtag('config', 'G-BSNYJW4KV8', {
         'send_page_view': true,
-        'anonymize_ip': true
+        'anonymize_ip': true,
+        'debug_mode': true  // Enable debug to see events in console
+      });
+      
+      // Log successful initialization
+      console.log('✅ Google Analytics initialized with ID: G-BSNYJW4KV8');
+      
+      // Test event to verify tracking works
+      gtag('event', 'page_view_test', {
+        'page_title': document.title,
+        'page_location': window.location.href
       });
     </script>
     
