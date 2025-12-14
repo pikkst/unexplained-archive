@@ -458,7 +458,7 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
           </div>
 
           {/* Mobile Dropdown Navigation */}
-          <div className="md:hidden mb-4">
+          <div className="sm:hidden mb-4">
             <div className="relative">
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}

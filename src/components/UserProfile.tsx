@@ -712,7 +712,7 @@ export const UserProfile: React.FC = () => {
         {/* Tabs */}
         <div className="bg-mystery-800 rounded-lg border border-mystery-700 p-6">
           {/* Desktop Navigation - Horizontal Tabs */}
-          <div className="hidden md:flex gap-4 border-b border-mystery-700 mb-6">
+          <div className="hidden sm:flex gap-4 border-b border-mystery-700 mb-6">
             <button
               onClick={() => setActiveTab('cases')}
               className={`px-4 py-2 transition-colors flex items-center gap-2 ${
@@ -761,7 +761,7 @@ export const UserProfile: React.FC = () => {
           </div>
 
           {/* Mobile Navigation - Dropdown Menu */}
-          <div className="md:hidden mb-6">
+          <div className="sm:hidden mb-6">
             <div className="relative">
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}

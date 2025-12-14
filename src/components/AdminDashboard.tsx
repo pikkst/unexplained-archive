@@ -765,7 +765,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       </div>
 
       {/* Mobile Navigation */}
-      <div className="md:hidden mb-8">
+      <div className="sm:hidden mb-8">
         <div className="relative">
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
@@ -810,7 +810,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             <div className="absolute top-full left-0 right-0 mt-1 bg-mystery-800 border border-mystery-700 rounded-lg shadow-xl z-50">
               <button
                 onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }}
-                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
                   activeTab === 'overview' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
                 }`}
               >
