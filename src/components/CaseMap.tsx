@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Layers, Eye, EyeOff } from 'lucide-react';
+import { Layers, Eye, EyeOff, Maximize, Minimize } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface CaseData {
@@ -39,12 +39,14 @@ export const CaseMap: React.FC<CaseMapProps> = ({
   onLocationPick
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const [zoomLevel, setZoomLevel] = useState(3);
   const [tempMarker, setTempMarker] = useState<any>(null);
   const [cases, setCases] = useState<CaseData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Filter State
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set(CATEGORIES));
@@ -84,6 +86,42 @@ export const CaseMap: React.FC<CaseMapProps> = ({
   };
 
   const visibleCases = cases.filter(c => selectedCategories.has(c.category.toLowerCase()));
+
+  // Handle Fullscreen Toggle
+  const toggleFullscreen = async () => {
+    if (!mapWrapperRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await mapWrapperRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Error toggling fullscreen:', error);
+    }
+  };
+
+  // Listen for fullscreen changes (e.g., ESC key)
+  useEffect(() => {
+    // Delay for map to properly recalculate its size after fullscreen transition
+    const MAP_RESIZE_DELAY_MS = 100;
+    
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      // Invalidate map size to ensure proper rendering after fullscreen changes
+      if (mapInstanceRef.current) {
+        setTimeout(() => {
+          mapInstanceRef.current.invalidateSize();
+        }, MAP_RESIZE_DELAY_MS);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   // Initialize map once after loading is complete
   useEffect(() => {
@@ -277,7 +315,7 @@ export const CaseMap: React.FC<CaseMapProps> = ({
   }, [visibleCases, zoomLevel, isPickerMode]);
 
   return (
-    <div className="relative w-full h-full group">
+    <div ref={mapWrapperRef} className="relative w-full h-full group bg-mystery-900">
       {loading ? (
         <div className="w-full h-full flex items-center justify-center bg-mystery-900">
           <div className="text-gray-400">Loading map...</div>
@@ -285,6 +323,21 @@ export const CaseMap: React.FC<CaseMapProps> = ({
       ) : (
         <>
           <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+          {/* Fullscreen Toggle Button */}
+          <div className="absolute top-4 right-4 z-[500]">
+            <button
+              onClick={toggleFullscreen}
+              className="bg-mystery-900/90 text-white p-2 rounded-lg border border-mystery-700 hover:bg-mystery-800 shadow-lg flex items-center gap-2 transition-colors"
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4" />
+              ) : (
+                <Maximize className="w-4 h-4" />
+              )}
+            </button>
+          </div>
 
           {/* Interactive Legend & Filters */}
           {!isPickerMode && (
