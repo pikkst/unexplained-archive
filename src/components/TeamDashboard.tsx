@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Users, MessageSquare, DollarSign, FileText, Send, UserPlus, X, Check, AlertCircle, Loader } from 'lucide-react';
+import { Users, MessageSquare, DollarSign, FileText, Send, UserPlus, X, Check, AlertCircle, Loader, TrendingUp, BarChart3 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 interface TeamMember {
   investigator_id: string;
@@ -43,7 +44,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
 }) => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'chat' | 'members' | 'split'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'members' | 'split' | 'analytics'>('chat');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [messages, setMessages] = useState<TeamMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -53,7 +54,10 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [availableInvestigators, setAvailableInvestigators] = useState<any[]>([]);
   const [contributionEdits, setContributionEdits] = useState<Record<string, number>>({});
+  const [analytics, setAnalytics] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const COLORS = ['#6366f1', '#22d3ee', '#a855f7', '#f59e0b', '#10b981'];
 
   useEffect(() => {
     loadTeamData();
@@ -106,10 +110,84 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       });
       setContributionEdits(edits);
       
+      // Load analytics
+      await loadAnalytics();
+      
     } catch (error) {
       console.error('Error loading team:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const loadAnalytics = async () => {
+    try {
+      // Get all cases worked on by team members
+      const memberIds = teamMembers.map(m => m.investigator_id);
+      if (memberIds.length === 0) return;
+      
+      const { data: allCases } = await supabase
+        .from('cases')
+        .select('id, status, category, created_at, updatedAt, assignedInvestigator')
+        .in('assignedInvestigator', memberIds);
+      
+      // Calculate analytics
+      const casesPerMember: Record<string, number> = {};
+      const casesByCategory: Record<string, number> = {};
+      const resolvedCases = (allCases || []).filter(c => c.status === 'RESOLVED');
+      const totalCases = allCases?.length || 0;
+      
+      allCases?.forEach(c => {
+        // Count by member
+        if (c.assignedInvestigator) {
+          casesPerMember[c.assignedInvestigator] = (casesPerMember[c.assignedInvestigator] || 0) + 1;
+        }
+        
+        // Count by category
+        casesByCategory[c.category] = (casesByCategory[c.category] || 0) + 1;
+      });
+      
+      // Calculate average resolution time
+      let totalResolutionDays = 0;
+      resolvedCases.forEach(c => {
+        if (c.created_at && c.updatedAt) {
+          const created = new Date(c.created_at).getTime();
+          const updated = new Date(c.updatedAt).getTime();
+          const days = (updated - created) / (1000 * 60 * 60 * 24);
+          totalResolutionDays += days;
+        }
+      });
+      const avgResolutionTime = resolvedCases.length > 0 
+        ? Math.round(totalResolutionDays / resolvedCases.length) 
+        : 0;
+      
+      // Format data for charts
+      const memberChartData = teamMembers.map(m => ({
+        name: m.username,
+        cases: casesPerMember[m.investigator_id] || 0,
+        contribution: m.contribution_percentage
+      }));
+      
+      const categoryChartData = Object.entries(casesByCategory).map(([name, value]) => ({
+        name,
+        value
+      }));
+      
+      const successRate = totalCases > 0 
+        ? Math.round((resolvedCases.length / totalCases) * 100) 
+        : 0;
+      
+      setAnalytics({
+        casesPerMember: memberChartData,
+        avgResolutionTime,
+        successRate,
+        categoryDistribution: categoryChartData,
+        totalCases,
+        resolvedCases: resolvedCases.length
+      });
+      
+    } catch (error) {
+      console.error('Error loading analytics:', error);
     }
   };
 
@@ -296,6 +374,17 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
               Reward Split
             </button>
           )}
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-4 py-3 font-medium transition-colors ${
+              activeTab === 'analytics'
+                ? 'text-mystery-accent border-b-2 border-mystery-accent'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 inline mr-2" />
+            Analytics
+          </button>
         </div>
 
         {/* Content */}
@@ -506,6 +595,145 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
               >
                 Save Reward Distribution
               </button>
+            </div>
+          )}
+          
+          {/* Analytics Tab */}
+          {activeTab === 'analytics' && (
+            <div className="p-6 overflow-y-auto h-full">
+              {!analytics ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader className="w-8 h-8 text-mystery-accent animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-mystery-800 border border-mystery-700 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="w-5 h-5 text-blue-400" />
+                        <h4 className="text-sm font-semibold text-gray-300">Total Cases</h4>
+                      </div>
+                      <p className="text-3xl font-bold text-white">{analytics.totalCases}</p>
+                      <p className="text-xs text-gray-500 mt-1">Cases worked by team</p>
+                    </div>
+                    
+                    <div className="bg-mystery-800 border border-mystery-700 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="w-5 h-5 text-green-400" />
+                        <h4 className="text-sm font-semibold text-gray-300">Success Rate</h4>
+                      </div>
+                      <p className="text-3xl font-bold text-white">{analytics.successRate}%</p>
+                      <p className="text-xs text-gray-500 mt-1">{analytics.resolvedCases} resolved</p>
+                    </div>
+                    
+                    <div className="bg-mystery-800 border border-mystery-700 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertCircle className="w-5 h-5 text-yellow-400" />
+                        <h4 className="text-sm font-semibold text-gray-300">Avg Resolution Time</h4>
+                      </div>
+                      <p className="text-3xl font-bold text-white">{analytics.avgResolutionTime}</p>
+                      <p className="text-xs text-gray-500 mt-1">days per case</p>
+                    </div>
+                  </div>
+                  
+                  {/* Cases per Member Chart */}
+                  <div className="bg-mystery-800 border border-mystery-700 rounded-lg p-6">
+                    <h4 className="text-lg font-bold text-white mb-4">Cases per Member</h4>
+                    {analytics.casesPerMember.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={analytics.casesPerMember}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#9ca3af"
+                            style={{ fontSize: '12px' }}
+                          />
+                          <YAxis 
+                            stroke="#9ca3af"
+                            style={{ fontSize: '12px' }}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: '#1f2937', 
+                              border: '1px solid #374151',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Bar dataKey="cases" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No case data available</p>
+                    )}
+                  </div>
+                  
+                  {/* Category Distribution */}
+                  <div className="bg-mystery-800 border border-mystery-700 rounded-lg p-6">
+                    <h4 className="text-lg font-bold text-white mb-4">Success Rate by Category</h4>
+                    {analytics.categoryDistribution.length > 0 ? (
+                      <div className="flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height={250}>
+                          <PieChart>
+                            <Pie
+                              data={analytics.categoryDistribution}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {analytics.categoryDistribution.map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: '#1f2937', 
+                                border: '1px solid #374151',
+                                borderRadius: '8px'
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 text-center py-8">No category data available</p>
+                    )}
+                  </div>
+                  
+                  {/* Team Contribution Progress */}
+                  <div className="bg-mystery-800 border border-mystery-700 rounded-lg p-6">
+                    <h4 className="text-lg font-bold text-white mb-4">Team Contribution</h4>
+                    <div className="space-y-3">
+                      {analytics.casesPerMember.map((member: any, idx: number) => {
+                        const totalTeamCases = analytics.casesPerMember.reduce((sum: number, m: any) => sum + m.cases, 0);
+                        const percentage = totalTeamCases > 0 ? Math.round((member.cases / totalTeamCases) * 100) : 0;
+                        
+                        return (
+                          <div key={idx}>
+                            <div className="flex items-center justify-between text-sm mb-1">
+                              <span className="text-gray-300 font-medium">{member.name}</span>
+                              <span className="text-mystery-400 font-semibold">{percentage}%</span>
+                            </div>
+                            <div className="w-full h-4 bg-mystery-900 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-mystery-500 to-mystery-400 transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {member.cases} cases • {member.contribution}% reward share
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
