@@ -207,11 +207,12 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onDonateToCase }) =>
             ))}
             <input
               type="number"
+              inputMode="decimal"
               placeholder="Custom"
               value={customAmount}
               onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(0); }}
               disabled={donating}
-              className="bg-mystery-800 border border-mystery-600 rounded-lg px-3 text-white focus:ring-2 focus:ring-mystery-500 outline-none text-center col-span-2 sm:col-span-1"
+              className="bg-mystery-800 border border-mystery-600 rounded-lg px-3 text-base text-white focus:ring-2 focus:ring-mystery-500 outline-none text-center col-span-2 sm:col-span-1"
             />
           </div>
         </div>
