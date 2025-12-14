@@ -30,12 +30,26 @@ function parseUtmParams(search: string) {
 
 async function getCountry(): Promise<string | null> {
   try {
+    // Check cache first
+    const cached = window.sessionStorage.getItem('user_country');
+    if (cached) return cached;
+    
     // Use ip-api.com free tier (45 requests/minute)
     // or ipapi.co which has no rate limit for basic data
     const response = await fetch('https://ipapi.co/json/');
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log('Country detection rate limited or failed, using fallback');
+      return null;
+    }
     const data = await response.json();
-    return data.country_name || data.country || null;
+    const country = data.country_name || data.country || null;
+    
+    // Cache for session
+    if (country) {
+      window.sessionStorage.setItem('user_country', country);
+    }
+    
+    return country;
   } catch (error) {
     console.error('Failed to get country:', error);
     return null;
