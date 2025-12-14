@@ -49,6 +49,8 @@ export const UserProfile: React.FC = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [followingActivity, setFollowingActivity] = useState<any[]>([]);
   const [loadingActivity, setLoadingActivity] = useState(false);
+  const [savedCases, setSavedCases] = useState<any[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
 
   // Load profile based on username parameter or current user
   useEffect(() => {
@@ -323,6 +325,47 @@ export const UserProfile: React.FC = () => {
     };
     
     loadFollowingActivity();
+  }, [isOwnProfile, currentUserProfile?.id, activeTab]);
+
+  // Load saved cases (only for own profile)
+  useEffect(() => {
+    if (!isOwnProfile || !currentUserProfile?.id || activeTab !== 'saved') return;
+    
+    const loadSavedCases = async () => {
+      try {
+        setLoadingSaved(true);
+        
+        const { data, error } = await supabase
+          .from('user_saved_cases')
+          .select(`
+            id,
+            saved_at,
+            notes,
+            cases (
+              id,
+              title,
+              description,
+              category,
+              status,
+              media_urls,
+              created_at,
+              latitude,
+              longitude
+            )
+          `)
+          .eq('user_id', currentUserProfile.id)
+          .order('saved_at', { ascending: false });
+        
+        if (error) throw error;
+        setSavedCases(data || []);
+      } catch (err) {
+        console.error('Failed to load saved cases:', err);
+      } finally {
+        setLoadingSaved(false);
+      }
+    };
+    
+    loadSavedCases();
   }, [isOwnProfile, currentUserProfile?.id, activeTab]);
 
   if (!profile || !user) {
@@ -968,9 +1011,58 @@ export const UserProfile: React.FC = () => {
           )}
 
           {activeTab === 'saved' && (
-            <div className="text-center py-12">
-              <p className="text-gray-400">No saved cases yet</p>
-            </div>
+            loadingSaved ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400">Loading saved cases...</p>
+              </div>
+            ) : savedCases.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-400 mb-4">No saved cases yet</p>
+                <Link
+                  to="/explore"
+                  className="inline-block bg-mystery-500 hover:bg-mystery-600 text-white px-6 py-3 rounded-lg transition-colors"
+                >
+                  Explore Cases
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {savedCases.map((saved: any) => (
+                  <Link
+                    key={saved.id}
+                    to={`/cases/${saved.cases.id}`}
+                    className="block bg-mystery-700/50 hover:bg-mystery-700 rounded-lg p-4 transition-colors border border-mystery-600"
+                  >
+                    <div className="flex gap-4">
+                      {saved.cases.media_urls?.[0] && (
+                        <img
+                          src={saved.cases.media_urls[0]}
+                          alt={saved.cases.title}
+                          className="w-24 h-24 rounded object-cover"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-lg font-semibold text-white">{saved.cases.title}</h3>
+                          <span className="text-xs text-yellow-400">📌 Saved</span>
+                        </div>
+                        <p className="text-sm text-gray-400 line-clamp-2 mb-2">{saved.cases.description}</p>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span className="capitalize">{saved.cases.category}</span>
+                          <span>{saved.cases.status}</span>
+                          <span>Saved {new Date(saved.saved_at).toLocaleDateString()}</span>
+                        </div>
+                        {saved.notes && (
+                          <p className="text-xs text-gray-500 italic mt-2 border-l-2 border-mystery-500 pl-2">
+                            Note: {saved.notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )
           )}
 
           {activeTab === 'activity' && (

@@ -106,6 +106,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
   const [similarCases, setSimilarCases] = useState<any[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   
+  // Bookmark State
+  const [isSaved, setIsSaved] = useState(false);
+  const [savingCase, setSavingCase] = useState(false);
+  
   // Update notes and proposal when caseData changes
   useEffect(() => {
     if (caseData) {
@@ -281,6 +285,27 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
     };
     loadTeamStatus();
   }, [caseData?.id, currentUser?.id]);
+
+  // Check if case is saved by user
+  useEffect(() => {
+    if (!caseData?.id || !user?.id) return;
+    const checkSavedStatus = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_saved_cases')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('case_id', caseData.id)
+          .maybeSingle();
+        
+        if (error) throw error;
+        setIsSaved(!!data);
+      } catch (err) {
+        console.error('Failed to check saved status:', err);
+      }
+    };
+    checkSavedStatus();
+  }, [caseData?.id, user?.id]);
   
   const loadCaseData = async () => {
     if (!id) return;
@@ -426,6 +451,44 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
     } catch (error) {
       console.error('Guest follow failed:', error);
       alert('Failed to follow case');
+    }
+  };
+
+  const handleSaveCase = async () => {
+    if (!user?.id) {
+      alert('Please sign in to save cases');
+      return;
+    }
+
+    setSavingCase(true);
+    try {
+      if (isSaved) {
+        // Unsave
+        const { error } = await supabase
+          .from('user_saved_cases')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('case_id', caseData.id);
+        
+        if (error) throw error;
+        setIsSaved(false);
+      } else {
+        // Save
+        const { error } = await supabase
+          .from('user_saved_cases')
+          .insert({
+            user_id: user.id,
+            case_id: caseData.id
+          });
+        
+        if (error) throw error;
+        setIsSaved(true);
+      }
+    } catch (error) {
+      console.error('Failed to save case:', error);
+      alert('Failed to save case. Please try again.');
+    } finally {
+      setSavingCase(false);
     }
   };
 
@@ -857,6 +920,32 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
                        <span className="flex items-center gap-1"><MapPin className="w-4 h-4"/> {caseData.location}</span>
                        <span className="flex items-center gap-1"><Calendar className="w-4 h-4"/> {new Date(caseData.incidentDate).toLocaleDateString()}</span>
                      </div>
+                     
+                     {/* Progress Bar */}
+                     {(caseData as any).progress_percentage !== undefined && (
+                       <div className="mt-4">
+                         <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+                           <span>Investigation Progress</span>
+                           <span className="font-bold text-mystery-400 text-sm">{(caseData as any).progress_percentage}%</span>
+                         </div>
+                         <div className="w-full h-3 bg-mystery-900 rounded-full overflow-hidden border border-mystery-700">
+                           <div 
+                             className="h-full bg-gradient-to-r from-blue-500 via-mystery-400 to-green-500 transition-all duration-500 relative"
+                             style={{ width: `${(caseData as any).progress_percentage}%` }}
+                           >
+                             <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                           </div>
+                         </div>
+                         <p className="text-xs text-gray-500 mt-2">
+                           {(caseData as any).progress_percentage === 100 ? 'Investigation complete' :
+                            (caseData as any).progress_percentage >= 75 ? 'Nearly resolved' :
+                            (caseData as any).progress_percentage >= 50 ? 'Investigation in progress' :
+                            (caseData as any).progress_percentage > 0 ? 'Initial investigation' :
+                            'Not yet started'}
+                         </p>
+                       </div>
+                     )}
+                     
                      {caseData.assignedInvestigator && (
                        <div className="mt-2 flex items-center gap-2 text-blue-300 text-sm">
                          <UserIcon className="w-4 h-4" />
@@ -881,32 +970,63 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
             </div>
 
             <div className="p-6 md:p-8 space-y-6">
-              {/* Follow Case Button (Top of page) */}
-              <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <Eye className="w-5 h-5 text-mystery-accent" />
-                  <div>
-                    <h4 className="text-white font-bold text-sm">Get Updates</h4>
-                    <p className="text-xs text-gray-400">{followerCount} people following this case</p>
+              {/* Follow and Save Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Follow Case Button */}
+                <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <Eye className="w-5 h-5 text-mystery-accent" />
+                    <div>
+                      <h4 className="text-white font-bold text-sm">Get Updates</h4>
+                      <p className="text-xs text-gray-400">{followerCount} following</p>
+                    </div>
                   </div>
+                  {isFollowing ? (
+                    <button
+                      onClick={handleUnfollow}
+                      className="px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <BellOff className="w-4 h-4" />
+                      Unfollow
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleFollow}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                    >
+                      <Bell className="w-4 h-4" />
+                      Follow
+                    </button>
+                  )}
                 </div>
-                {isFollowing ? (
+
+                {/* Save Case Button */}
+                <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-yellow-400" />
+                    <div>
+                      <h4 className="text-white font-bold text-sm">Save for Later</h4>
+                      <p className="text-xs text-gray-400">{isSaved ? 'Saved' : 'Not saved'}</p>
+                    </div>
+                  </div>
                   <button
-                    onClick={handleUnfollow}
-                    className="px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                    onClick={handleSaveCase}
+                    disabled={savingCase}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
+                      isSaved
+                        ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
+                        : 'bg-mystery-700 hover:bg-mystery-600 text-white'
+                    }`}
                   >
-                    <BellOff className="w-4 h-4" />
-                    Unfollow
+                    {savingCase ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    ) : (
+                      <>
+                        {isSaved ? '📌' : '☐'} {isSaved ? 'Saved' : 'Save'}
+                      </>
+                    )}
                   </button>
-                ) : (
-                  <button
-                    onClick={handleFollow}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                  >
-                    <Bell className="w-4 h-4" />
-                    Follow Case
-                  </button>
-                )}
+                </div>
               </div>
 
               {/* Translation Panel for Investigators/Admins */}

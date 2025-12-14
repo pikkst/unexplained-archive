@@ -187,9 +187,10 @@ const isTrending = caseViews.last7Days > averageViews * 1.5;
 
 ---
 
-### [ ] 9. Case Progress Percentage
+### [✓] 9. Case Progress Percentage ✅ COMPLETE
 **Time:** 30 min  
 **Location:** ExploreCases.tsx, CaseDetail.tsx, Database
+**Status:** Live - Visual progress bars with percentage display and status text
 
 ```sql
 -- Add to cases table
@@ -211,9 +212,10 @@ ALTER TABLE cases ADD COLUMN progress_percentage INTEGER DEFAULT 0 CHECK (progre
 
 ---
 
-### [ ] 10. Case Bookmark/Save System
+### [✓] 10. Case Bookmark/Save System ✅ COMPLETE
 **Time:** 60 min  
 **Location:** CaseDetail.tsx, UserProfile.tsx
+**Status:** Live - Users can save cases and view them in profile saved tab
 
 ```sql
 -- Create table

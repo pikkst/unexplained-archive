@@ -270,6 +270,22 @@ export const ExploreCases: React.FC = () => {
                           </div>
                         )}
                         
+                        {/* Progress Bar */}
+                        {(c as any).progress_percentage !== undefined && (
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                              <span>Investigation Progress</span>
+                              <span className="font-semibold text-mystery-400">{(c as any).progress_percentage}%</span>
+                            </div>
+                            <div className="w-full h-2 bg-mystery-900 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-blue-500 to-mystery-400 transition-all duration-500"
+                                style={{ width: `${(c as any).progress_percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-mystery-700 text-xs text-gray-500">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3 h-3" /> {c.location}
