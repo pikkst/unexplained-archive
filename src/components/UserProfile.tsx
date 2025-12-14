@@ -194,43 +194,45 @@ export const UserProfile: React.FC = () => {
   useEffect(() => {
     if (!profile?.id) return;
     
-    const loadBadges = async () => {
-      try {
-        const { data } = await supabase
-          .from('user_badges')
-          .select('id, badge_id, earned_at, badges(id, name, slug, description, icon)')
-          .eq('user_id', profile.id)
-          .order('earned_at', { ascending: false });
-        
-        setBadges(data || []);
-      } catch (error) {
-        console.error('Failed to load badges:', error);
-      }
-    };
-    
-    loadBadges();
+    // TODO: Uncomment when user_badges table is created in Supabase
+    // const loadBadges = async () => {
+    //   try {
+    //     const { data } = await supabase
+    //       .from('user_badges')
+    //       .select('id, badge_id, earned_at, badges(id, name, slug, description, icon)')
+    //       .eq('user_id', profile.id)
+    //       .order('earned_at', { ascending: false });
+    //     
+    //     setBadges(data || []);
+    //   } catch (error) {
+    //     console.error('Failed to load badges:', error);
+    //   }
+    // };
+    // 
+    // loadBadges();
   }, [profile?.id]);
 
   // Load login streaks
   useEffect(() => {
     if (!profile?.id) return;
     
-    const loadStreaks = async () => {
-      try {
-        const { data } = await supabase
-          .from('user_challenges')
-          .select('*')
-          .eq('user_id', profile.id)
-          .eq('challenge_id', 'login-streak')
-          .single();
-        
-        setStreaks(data || null);
-      } catch (error) {
-        console.error('Failed to load streaks:', error);
-      }
-    };
-    
-    loadStreaks();
+    // TODO: Uncomment when user_challenges table is created in Supabase
+    // const loadStreaks = async () => {
+    //   try {
+    //     const { data } = await supabase
+    //       .from('user_challenges')
+    //       .select('*')
+    //       .eq('user_id', profile.id)
+    //       .eq('challenge_id', 'login-streak')
+    //       .single();
+    //     
+    //     setStreaks(data || null);
+    //   } catch (error) {
+    //     console.error('Failed to load streaks:', error);
+    //   }
+    // };
+    // 
+    // loadStreaks();
   }, [profile?.id]);
 
   // Load follow counts

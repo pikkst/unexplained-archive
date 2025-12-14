@@ -58,28 +58,30 @@ export const UserStats: React.FC<UserStatsProps> = ({ userId }) => {
           setReputation(profileData.reputation || 0);
         }
 
+        // TODO: Uncomment when user_badges table is created in Supabase
         // Get badges
-        const { data: badgesData } = await supabase
-          .from('user_badges')
-          .select('id, badge_id, earned_at, badges(id, slug, name)')
-          .eq('user_id', userId)
-          .order('earned_at', { ascending: false });
+        // const { data: badgesData } = await supabase
+        //   .from('user_badges')
+        //   .select('id, badge_id, earned_at, badges(id, slug, name)')
+        //   .eq('user_id', userId)
+        //   .order('earned_at', { ascending: false });
 
-        if (badgesData) {
-          setBadges(badgesData);
-        }
+        // if (badgesData) {
+        //   setBadges(badgesData);
+        // }
 
+        // TODO: Uncomment when user_challenges table is created in Supabase
         // Get login streaks
-        const { data: challengesData } = await supabase
-          .from('user_challenges')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('challenge_id', 'login-streak')
-          .single();
+        // const { data: challengesData } = await supabase
+        //   .from('user_challenges')
+        //   .select('*')
+        //   .eq('user_id', userId)
+        //   .eq('challenge_id', 'login-streak')
+        //   .single();
 
-        if (challengesData) {
-          setStreaks(challengesData);
-        }
+        // if (challengesData) {
+        //   setStreaks(challengesData);
+        // }
 
         // Get follower count
         const { count: followerCount } = await supabase

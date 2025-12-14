@@ -43,11 +43,13 @@ GROUP BY case_id;
 ALTER TABLE case_difficulty_votes ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policy: Users can view all difficulty votes
+DROP POLICY IF EXISTS "Anyone can view difficulty votes" ON case_difficulty_votes;
 CREATE POLICY "Anyone can view difficulty votes" ON case_difficulty_votes
   FOR SELECT
   USING (true);
 
 -- RLS Policy: Users can only vote on their own votes
+DROP POLICY IF EXISTS "Users can manage their own difficulty votes" ON case_difficulty_votes;
 CREATE POLICY "Users can manage their own difficulty votes" ON case_difficulty_votes
   FOR ALL
   USING (auth.uid() = user_id)
@@ -76,10 +78,12 @@ ON user_follows(following_id);
 
 ALTER TABLE user_follows ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view follows" ON user_follows;
 CREATE POLICY "Anyone can view follows" ON user_follows
   FOR SELECT
   USING (true);
 
+DROP POLICY IF EXISTS "Users can manage their own follows" ON user_follows;
 CREATE POLICY "Users can manage their own follows" ON user_follows
   FOR ALL
   USING (auth.uid() = follower_id)
@@ -97,6 +101,20 @@ CREATE TABLE IF NOT EXISTS user_badges (
   earned_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id, badge_id)
 );
+
+-- Add foreign key constraint if missing
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'user_badges_badge_id_fkey' 
+    AND table_name = 'user_badges'
+  ) THEN
+    ALTER TABLE user_badges 
+    ADD CONSTRAINT user_badges_badge_id_fkey 
+    FOREIGN KEY (badge_id) REFERENCES badges(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_user_badges_user_id 
 ON user_badges(user_id);
@@ -126,6 +144,7 @@ ON CONFLICT DO NOTHING;
 
 ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can view badges" ON user_badges;
 CREATE POLICY "Anyone can view badges" ON user_badges
   FOR SELECT
   USING (true);
@@ -145,6 +164,20 @@ CREATE TABLE IF NOT EXISTS user_challenges (
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id, challenge_id)
 );
+
+-- Add foreign key constraint if missing
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'user_challenges_challenge_id_fkey' 
+    AND table_name = 'user_challenges'
+  ) THEN
+    ALTER TABLE user_challenges 
+    ADD CONSTRAINT user_challenges_challenge_id_fkey 
+    FOREIGN KEY (challenge_id) REFERENCES challenges(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_user_challenges_user_id 
 ON user_challenges(user_id);
@@ -170,10 +203,12 @@ ON CONFLICT DO NOTHING;
 
 ALTER TABLE user_challenges ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own challenges" ON user_challenges;
 CREATE POLICY "Users can view their own challenges" ON user_challenges
   FOR SELECT
   USING (auth.uid() = user_id OR auth.uid() IS NULL);
 
+DROP POLICY IF EXISTS "Users can update their own challenges" ON user_challenges;
 CREATE POLICY "Users can update their own challenges" ON user_challenges
   FOR UPDATE
   USING (auth.uid() = user_id)
