@@ -110,6 +110,10 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
   const [isSaved, setIsSaved] = useState(false);
   const [savingCase, setSavingCase] = useState(false);
   
+  // Evidence Upvoting State
+  const [commentVotes, setCommentVotes] = useState<Record<string, { count: number, userVoted: boolean }>>({});
+  const [votingComment, setVotingComment] = useState<string | null>(null);
+  
   // Update notes and proposal when caseData changes
   useEffect(() => {
     if (caseData) {
@@ -376,8 +380,115 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
 
       if (error) throw error;
       setComments(data || []);
+      
+      // Load vote data for each comment
+      if (data && data.length > 0) {
+        await loadCommentVotes(data.map(c => c.id));
+      }
     } catch (error) {
       console.error('Error loading comments:', error);
+    }
+  };
+  
+  const loadCommentVotes = async (commentIds: string[]) => {
+    if (!commentIds.length) return;
+    
+    try {
+      // Load vote counts
+      const { data: voteCounts, error: countError } = await supabase
+        .from('evidence_likes')
+        .select('comment_id')
+        .in('comment_id', commentIds);
+      
+      if (countError) throw countError;
+      
+      // Count votes per comment
+      const counts: Record<string, number> = {};
+      (voteCounts || []).forEach(vote => {
+        counts[vote.comment_id] = (counts[vote.comment_id] || 0) + 1;
+      });
+      
+      // Load user's votes if logged in
+      let userVotes: string[] = [];
+      if (user) {
+        const { data: userVoteData, error: userError } = await supabase
+          .from('evidence_likes')
+          .select('comment_id')
+          .eq('user_id', user.id)
+          .in('comment_id', commentIds);
+        
+        if (userError) throw userError;
+        userVotes = (userVoteData || []).map(v => v.comment_id);
+      }
+      
+      // Build vote state
+      const voteState: Record<string, { count: number, userVoted: boolean }> = {};
+      commentIds.forEach(id => {
+        voteState[id] = {
+          count: counts[id] || 0,
+          userVoted: userVotes.includes(id)
+        };
+      });
+      
+      setCommentVotes(voteState);
+    } catch (error) {
+      console.error('Error loading comment votes:', error);
+    }
+  };
+  
+  const handleVoteComment = async (commentId: string) => {
+    if (!user) {
+      alert('Please log in to vote on comments');
+      return;
+    }
+    
+    if (votingComment) return; // Prevent double-click
+    setVotingComment(commentId);
+    
+    try {
+      const currentVote = commentVotes[commentId];
+      
+      if (currentVote?.userVoted) {
+        // Unlike
+        const { error } = await supabase
+          .from('evidence_likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('comment_id', commentId);
+        
+        if (error) throw error;
+        
+        setCommentVotes(prev => ({
+          ...prev,
+          [commentId]: {
+            count: Math.max(0, (prev[commentId]?.count || 0) - 1),
+            userVoted: false
+          }
+        }));
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('evidence_likes')
+          .insert({
+            user_id: user.id,
+            comment_id: commentId
+          });
+        
+        if (error) throw error;
+        
+        setCommentVotes(prev => ({
+          ...prev,
+          [commentId]: {
+            count: (prev[commentId]?.count || 0) + 1,
+            userVoted: true
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error voting on comment:', error);
+      alert('Failed to vote on comment');
+    } finally {
+      setVotingComment(null);
     }
   };
   
@@ -1599,8 +1710,17 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
 
                         {/* Actions */}
                         <div className="flex items-center gap-3 mt-2">
-                          <button className="text-xs text-gray-500 hover:text-white flex items-center gap-1">
-                            <ThumbsUp className="w-3 h-3" /> {comment.likes || 0}
+                          <button 
+                            onClick={() => handleVoteComment(comment.id)}
+                            disabled={votingComment === comment.id}
+                            className={`text-xs flex items-center gap-1 transition-colors ${
+                              commentVotes[comment.id]?.userVoted 
+                                ? 'text-mystery-400 hover:text-mystery-300' 
+                                : 'text-gray-500 hover:text-white'
+                            }`}
+                          >
+                            <ThumbsUp className={`w-3 h-3 ${commentVotes[comment.id]?.userVoted ? 'fill-current' : ''}`} />
+                            <span className="font-semibold">{commentVotes[comment.id]?.count || 0}</span>
                           </button>
                           <button 
                             onClick={() => { setReplyingToId(comment.id); setReplyContent(''); }}
@@ -1719,8 +1839,17 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
                               )}
                               
                               <div className="flex items-center gap-3 mt-1">
-                                <button className="text-xs text-gray-500 hover:text-white flex items-center gap-1">
-                                  <ThumbsUp className="w-3 h-3" /> {reply.likes || 0}
+                                <button 
+                                  onClick={() => handleVoteComment(reply.id)}
+                                  disabled={votingComment === reply.id}
+                                  className={`text-xs flex items-center gap-1 transition-colors ${
+                                    commentVotes[reply.id]?.userVoted 
+                                      ? 'text-mystery-400 hover:text-mystery-300' 
+                                      : 'text-gray-500 hover:text-white'
+                                  }`}
+                                >
+                                  <ThumbsUp className={`w-3 h-3 ${commentVotes[reply.id]?.userVoted ? 'fill-current' : ''}`} />
+                                  <span className="font-semibold">{commentVotes[reply.id]?.count || 0}</span>
                                 </button>
                               </div>
                             </div>
