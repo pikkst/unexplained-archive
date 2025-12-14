@@ -90,27 +90,6 @@ CREATE POLICY "Admins can update applications." ON public.investigator_applicati
   FOR UPDATE USING (is_admin((select auth.uid())));
 
 --------------------------------------------------------------------------------
--- Table: background_checks - Optimized policies
---------------------------------------------------------------------------------
-
-DROP POLICY IF EXISTS "Users can view their own background checks." ON public.background_checks;
-DROP POLICY IF EXISTS "Admins can view all background checks." ON public.background_checks;
-DROP POLICY IF EXISTS "Admins can insert background checks." ON public.background_checks;
-DROP POLICY IF EXISTS "Admins can update background checks." ON public.background_checks;
-
-CREATE POLICY "Users can view their own background checks." ON public.background_checks
-  FOR SELECT USING ((select auth.uid()) = user_id);
-
-CREATE POLICY "Admins can view all background checks." ON public.background_checks
-  FOR SELECT USING (is_admin((select auth.uid())));
-
-CREATE POLICY "Admins can insert background checks." ON public.background_checks
-  FOR INSERT WITH CHECK (is_admin((select auth.uid())));
-
-CREATE POLICY "Admins can update background checks." ON public.background_checks
-  FOR UPDATE USING (is_admin((select auth.uid())));
-
---------------------------------------------------------------------------------
 -- Table: messages - Optimized policies
 --------------------------------------------------------------------------------
 
