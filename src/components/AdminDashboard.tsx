@@ -98,6 +98,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
 
   const loadAnalytics = async () => {
     try {
+      // Try to fetch from Google Analytics API first
+      try {
+        const { data: gaData, error: gaError } = await supabase.functions.invoke('google-analytics', {
+          body: { action: 'fetch_analytics' }
+        });
+
+        if (gaData?.success && gaData.data) {
+          console.log('✅ Using Google Analytics API data');
+          setAnalyticsData({
+            pageViews: gaData.data.pageViews,
+            uniqueVisitors: gaData.data.uniqueVisitors,
+            avgSessionDuration: gaData.data.avgSessionDuration,
+            bounceRate: gaData.data.bounceRate,
+            topPages: gaData.data.topPages,
+            trafficSources: gaData.data.trafficSources,
+            topCountries: gaData.data.topCountries,
+          });
+          
+          await loadCategoryTrends();
+          return; // Success, exit early
+        }
+        
+        if (gaError) {
+          console.warn('Google Analytics API not available:', gaError);
+        }
+      } catch (gaError) {
+        console.warn('Failed to fetch Google Analytics:', gaError);
+      }
+
+      // Fallback to Supabase analytics_events table
+      console.log('📊 Using fallback Supabase analytics');
       const { data: analyticsEvents } = await supabase
         .from('analytics_events')
         .select('*')
@@ -1724,10 +1755,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
 
               {/* SEO Rankings Management */}
               <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
-                <h3 className="font-bold text-white mb-6 flex items-center gap-2">
-                  <Search className="w-5 h-5 text-mystery-400" />
-                  SEO Rankings Management
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                    <Search className="w-5 h-5 text-mystery-400" />
+                    SEO Rankings Management
+                  </h3>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { data: searchData, error } = await supabase.functions.invoke('google-analytics', {
+                          body: { action: 'fetch_search_console' }
+                        });
+
+                        if (searchData?.success && searchData.data?.length > 0) {
+                          // Auto-import Search Console data to SEO rankings table
+                          for (const item of searchData.data.slice(0, 20)) { // Top 20
+                            await supabase.from('seo_rankings').upsert({
+                              keyword: item.keyword,
+                              page_url: item.page_url,
+                              search_engine: 'google',
+                              ranking_position: item.position,
+                              country: item.country,
+                              date: item.date,
+                              clicks: item.clicks,
+                              impressions: item.impressions,
+                              ctr: item.ctr,
+                            }, {
+                              onConflict: 'keyword,page_url,search_engine,country,date'
+                            });
+                          }
+                          await loadSeoRankings();
+                          alert(`✅ Imported ${searchData.data.length} rankings from Google Search Console!`);
+                        } else {
+                          alert('⚠️ Google Search Console API not configured or no data available');
+                        }
+                      } catch (error) {
+                        console.error('Failed to import Search Console data:', error);
+                        alert('❌ Failed to import. Check console for details.');
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium text-sm transition-colors flex items-center gap-2"
+                  >
+                    <Globe className="w-4 h-4" />
+                    Import from Google Search Console
+                  </button>
+                </div>
 
                 {/* Add New SEO Ranking */}
                 <div className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-4 mb-6">
