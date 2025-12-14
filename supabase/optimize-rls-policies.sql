@@ -90,27 +90,6 @@ CREATE POLICY "Admins can update applications." ON public.investigator_applicati
   FOR UPDATE USING (is_admin((select auth.uid())));
 
 --------------------------------------------------------------------------------
--- Table: messages - Optimized policies
---------------------------------------------------------------------------------
-
-DROP POLICY IF EXISTS "Users can view messages sent to them." ON public.messages;
-DROP POLICY IF EXISTS "Users can view messages they sent." ON public.messages;
-DROP POLICY IF EXISTS "Users can send messages." ON public.messages;
-DROP POLICY IF EXISTS "Users can update their received messages." ON public.messages;
-
-CREATE POLICY "Users can view messages sent to them." ON public.messages
-  FOR SELECT USING ((select auth.uid()) = receiver_id);
-
-CREATE POLICY "Users can view messages they sent." ON public.messages
-  FOR SELECT USING ((select auth.uid()) = sender_id);
-
-CREATE POLICY "Users can send messages." ON public.messages
-  FOR INSERT WITH CHECK ((select auth.uid()) = sender_id);
-
-CREATE POLICY "Users can update their received messages." ON public.messages
-  FOR UPDATE USING ((select auth.uid()) = receiver_id);
-
---------------------------------------------------------------------------------
 -- Table: notifications - Optimized policies
 --------------------------------------------------------------------------------
 
