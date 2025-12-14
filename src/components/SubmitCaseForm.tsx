@@ -373,6 +373,53 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Template Selector */}
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <FileSearch className="w-5 h-5 text-blue-400" />
+              <h3 className="font-semibold text-white">Use a Template (Optional)</h3>
+            </div>
+            <p className="text-sm text-gray-300 mb-3">
+              Templates help you provide complete information for better investigations.
+            </p>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => handleTemplateSelect(e.target.value)}
+              className="w-full bg-mystery-900 border border-mystery-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-mystery-500 outline-none"
+            >
+              <option value="">Create from scratch</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name} - {t.description}
+                </option>
+              ))}
+            </select>
+            
+            {showTemplateGuide && selectedTemplate && (
+              <div className="mt-4 bg-mystery-900/50 border border-mystery-700 rounded-lg p-4">
+                <h4 className="font-semibold text-white mb-2 text-sm">Template Guide</h4>
+                {(() => {
+                  const template = templates.find(t => t.id === selectedTemplate);
+                  if (!template) return null;
+                  
+                  return (
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-400 mb-3">{template.guidance_text}</p>
+                      <div className="text-xs text-gray-300 space-y-1">
+                        <p className="font-semibold text-mystery-400">Required Information:</p>
+                        {Object.entries(template.form_fields).map(([key, value]: [string, any]) => (
+                          <div key={key} className="pl-2">
+                            <span className="text-mystery-300">• {value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-400 mb-2">Case Title</label>
