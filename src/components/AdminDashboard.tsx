@@ -75,6 +75,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   // Auto-refresh timer for analytics
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
   const [prevAnalyticsData, setPrevAnalyticsData] = useState(analyticsData);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
 
   // Animated counter hook
   const useAnimatedCounter = (targetValue: number, duration: number = 1000) => {
@@ -122,23 +123,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   useEffect(() => {
     if (activeTab === 'analytics' && autoRefreshEnabled) {
       const interval = setInterval(() => {
-        loadAnalytics();
+        // Only load if not already loading
+        if (!isLoadingAnalytics) {
+          loadAnalytics();
+        }
       }, 30000); // 30 seconds
       
       return () => clearInterval(interval);
     }
-  }, [activeTab, autoRefreshEnabled]);
+  }, [activeTab, autoRefreshEnabled, isLoadingAnalytics]);
 
   const loadAnalytics = async () => {
+    if (isLoadingAnalytics) return; // Prevent concurrent calls
+    
     try {
+      setIsLoadingAnalytics(true);
       // Save previous data for animation
       setPrevAnalyticsData(analyticsData);
       
-      // Try to fetch from Google Analytics API first
+      // Try to fetch from Google Analytics API first with timeout
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const { data: gaData, error: gaError } = await supabase.functions.invoke('google-analytics', {
           body: { action: 'fetch_analytics' }
         });
+        
+        clearTimeout(timeoutId);
 
         if (gaData?.success && gaData.data) {
           console.log('✅ Using Google Analytics API data');
@@ -153,6 +165,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           });
           
           await loadCategoryTrends();
+          setIsLoadingAnalytics(false);
           return; // Success, exit early
         }
         
@@ -161,6 +174,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         }
       } catch (gaError) {
         console.warn('Failed to fetch Google Analytics:', gaError);
+        // Don't fail completely, continue to fallback
       }
 
       // Fallback to Supabase analytics_events table
@@ -267,6 +281,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       await loadCategoryTrends();
     } catch (error) {
       console.error('Failed to load analytics:', error);
+    } finally {
+      setIsLoadingAnalytics(false);
     }
   };
 

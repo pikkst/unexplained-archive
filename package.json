@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run copy:404",
+    "build": "vite build && npm run copy:404 && npm run copy:favicon",
     "copy:404": "node -e \"require('fs').copyFileSync('public/404.html', 'dist/404.html')\"",
+    "copy:favicon": "node -e \"require('fs').copyFileSync('public/favicon.svg', 'dist/favicon.svg')\"",
     "preview": "vite preview"
   },
   "dependencies": {
