@@ -14,7 +14,7 @@ import { isTeamLeader, getCaseTeam } from '../services/teamService';
 import { caseService } from '../services/caseService';
 import { boostService } from '../services/boostService';
 import type { Database } from '../lib/supabase';
-import { MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Shield, DollarSign, ThumbsUp, ThumbsDown, Star, MessageSquare, Send, Sparkles, Scale, AlertTriangle, FileText, Languages, Globe, Bell, BellOff, Eye, Zap, MapIcon, Trash2, Edit2, Reply, X, Check, Users } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Shield, DollarSign, ThumbsUp, ThumbsDown, Star, MessageSquare, Send, Sparkles, Scale, AlertTriangle, FileText, Languages, Globe, Bell, BellOff, Eye, Zap, MapIcon, Trash2, Edit2, Reply, X, Check, Users, Lightbulb, TrendingUp as TrendingUpIcon } from 'lucide-react';
 
 // Define types from supabase schema
 type Case = Database['public']['Tables']['cases']['Row'];
@@ -114,6 +114,15 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
   const [commentVotes, setCommentVotes] = useState<Record<string, { count: number, userVoted: boolean }>>({});
   const [votingComment, setVotingComment] = useState<string | null>(null);
   
+  // Theories State
+  const [activeTab, setActiveTab] = useState<'discussion' | 'theories'>('discussion');
+  const [theories, setTheories] = useState<any[]>([]);
+  const [theoryVotes, setTheoryVotes] = useState<Record<string, { count: number, userVoted: boolean }>>({});
+  const [loadingTheories, setLoadingTheories] = useState(false);
+  const [showTheoryForm, setShowTheoryForm] = useState(false);
+  const [newTheory, setNewTheory] = useState({ type: 'Natural Phenomenon', title: '', description: '' });
+  const [votingTheory, setVotingTheory] = useState<string | null>(null);
+  
   // Update notes and proposal when caseData changes
   useEffect(() => {
     if (caseData) {
@@ -135,6 +144,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
   useEffect(() => {
     if (caseData?.id) {
       loadComments();
+      loadTheories();
     }
   }, [caseData?.id]);
   
@@ -489,6 +499,168 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
       alert('Failed to vote on comment');
     } finally {
       setVotingComment(null);
+    }
+  };
+  
+  const loadTheories = async () => {
+    if (!caseData?.id) return;
+    setLoadingTheories(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('case_theories')
+        .select(`
+          *,
+          profiles (
+            id,
+            username,
+            avatar_url
+          )
+        `)
+        .eq('case_id', caseData.id)
+        .order('vote_count', { ascending: false });
+      
+      if (error) throw error;
+      setTheories(data || []);
+      
+      if (data && data.length > 0) {
+        await loadTheoryVotes(data.map(t => t.id));
+      }
+    } catch (error) {
+      console.error('Error loading theories:', error);
+    } finally {
+      setLoadingTheories(false);
+    }
+  };
+  
+  const loadTheoryVotes = async (theoryIds: string[]) => {
+    if (!theoryIds.length) return;
+    
+    try {
+      const { data: voteCounts, error: countError } = await supabase
+        .from('theory_votes')
+        .select('theory_id')
+        .in('theory_id', theoryIds);
+      
+      if (countError) throw countError;
+      
+      const counts: Record<string, number> = {};
+      (voteCounts || []).forEach(vote => {
+        counts[vote.theory_id] = (counts[vote.theory_id] || 0) + 1;
+      });
+      
+      let userVotes: string[] = [];
+      if (user) {
+        const { data: userVoteData, error: userError } = await supabase
+          .from('theory_votes')
+          .select('theory_id')
+          .eq('user_id', user.id)
+          .in('theory_id', theoryIds);
+        
+        if (userError) throw userError;
+        userVotes = (userVoteData || []).map(v => v.theory_id);
+      }
+      
+      const voteState: Record<string, { count: number, userVoted: boolean }> = {};
+      theoryIds.forEach(id => {
+        voteState[id] = {
+          count: counts[id] || 0,
+          userVoted: userVotes.includes(id)
+        };
+      });
+      
+      setTheoryVotes(voteState);
+    } catch (error) {
+      console.error('Error loading theory votes:', error);
+    }
+  };
+  
+  const handleVoteTheory = async (theoryId: string) => {
+    if (!user) {
+      alert('Please log in to vote on theories');
+      return;
+    }
+    
+    if (votingTheory) return;
+    setVotingTheory(theoryId);
+    
+    try {
+      const currentVote = theoryVotes[theoryId];
+      
+      if (currentVote?.userVoted) {
+        const { error } = await supabase
+          .from('theory_votes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('theory_id', theoryId);
+        
+        if (error) throw error;
+        
+        setTheoryVotes(prev => ({
+          ...prev,
+          [theoryId]: {
+            count: Math.max(0, (prev[theoryId]?.count || 0) - 1),
+            userVoted: false
+          }
+        }));
+      } else {
+        const { error } = await supabase
+          .from('theory_votes')
+          .insert({
+            user_id: user.id,
+            theory_id: theoryId
+          });
+        
+        if (error) throw error;
+        
+        setTheoryVotes(prev => ({
+          ...prev,
+          [theoryId]: {
+            count: (prev[theoryId]?.count || 0) + 1,
+            userVoted: true
+          }
+        }));
+      }
+      
+      await loadTheories(); // Reload to update sort order
+    } catch (error) {
+      console.error('Error voting on theory:', error);
+      alert('Failed to vote on theory');
+    } finally {
+      setVotingTheory(null);
+    }
+  };
+  
+  const handleSubmitTheory = async () => {
+    if (!user) {
+      alert('Please log in to submit theories');
+      return;
+    }
+    
+    if (!newTheory.title.trim() || !newTheory.description.trim()) {
+      alert('Please provide both a title and description');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('case_theories')
+        .insert({
+          case_id: caseData!.id,
+          user_id: user.id,
+          theory_type: newTheory.type,
+          title: newTheory.title,
+          description: newTheory.description
+        });
+      
+      if (error) throw error;
+      
+      setNewTheory({ type: 'Natural Phenomenon', title: '', description: '' });
+      setShowTheoryForm(false);
+      await loadTheories();
+    } catch (error) {
+      console.error('Error submitting theory:', error);
+      alert('Failed to submit theory');
     }
   };
   
@@ -1584,28 +1756,63 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
             </div>
           </div>
           
-          {/* Community Discussion Section */}
+          {/* Community Discussion & Theories Section */}
           <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 md:p-8">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" /> Community Discussion
-            </h3>
-            
-            {/* Input */}
-            <div className="flex gap-4 mb-8">
-              <img src={currentUser.avatar_url} className="w-10 h-10 rounded-full" />
-              <div className="flex-1">
-                <textarea 
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Share your thoughts on this case..." 
-                  className="w-full bg-mystery-900 border border-mystery-700 rounded-lg p-3 text-white text-sm focus:ring-2 focus:ring-mystery-500 outline-none resize-none"
-                  rows={2}
-                />
-                <div className="flex justify-end mt-2">
-                  <button 
-                    onClick={handlePostComment}
-                    disabled={!newComment.trim()}
-                    className="px-4 py-2 bg-mystery-500 hover:bg-mystery-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium flex items-center gap-2"
+            {/* Tab Headers */}
+            <div className="flex border-b border-mystery-700 mb-6">
+              <button
+                onClick={() => setActiveTab('discussion')}
+                className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors relative ${
+                  activeTab === 'discussion'
+                    ? 'text-mystery-400 border-b-2 border-mystery-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <MessageSquare className="w-5 h-5" />
+                Discussion
+                <span className="text-xs bg-mystery-700 px-2 py-0.5 rounded-full">
+                  {comments.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('theories')}
+                className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors relative ${
+                  activeTab === 'theories'
+                    ? 'text-mystery-400 border-b-2 border-mystery-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Lightbulb className="w-5 h-5" />
+                Community Theories
+                <span className="text-xs bg-mystery-700 px-2 py-0.5 rounded-full">
+                  {theories.length}
+                </span>
+              </button>
+            </div>
+
+            {/* Discussion Tab */}
+            {activeTab === 'discussion' && (
+              <div>
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" /> Community Discussion
+                </h3>
+                
+                {/* Input */}
+                <div className="flex gap-4 mb-8">
+                  <img src={currentUser.avatar_url} className="w-10 h-10 rounded-full" />
+                  <div className="flex-1">
+                    <textarea 
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Share your thoughts on this case..." 
+                      className="w-full bg-mystery-900 border border-mystery-700 rounded-lg p-3 text-white text-sm focus:ring-2 focus:ring-mystery-500 outline-none resize-none"
+                      rows={2}
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button 
+                        onClick={handlePostComment}
+                        disabled={!newComment.trim()}
+                        className="px-4 py-2 bg-mystery-500 hover:bg-mystery-400 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium flex items-center gap-2"
                   >
                     <Send className="w-4 h-4" /> Post Comment
                   </button>
@@ -1863,6 +2070,178 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
                 <p className="text-gray-500 text-sm text-center">No comments yet. Be the first to discuss this case.</p>
               )}
             </div>
+              </div>
+            )}
+            
+            {/* Theories Tab */}
+            {activeTab === 'theories' && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Lightbulb className="w-5 h-5" /> Community Theories
+                  </h3>
+                  <button
+                    onClick={() => setShowTheoryForm(!showTheoryForm)}
+                    className="px-4 py-2 bg-mystery-500 hover:bg-mystery-400 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+                  >
+                    <Lightbulb className="w-4 h-4" />
+                    {showTheoryForm ? 'Cancel' : 'Submit Theory'}
+                  </button>
+                </div>
+                
+                {/* Theory Submission Form */}
+                {showTheoryForm && (
+                  <div className="bg-mystery-900 border border-mystery-700 rounded-lg p-6 mb-6">
+                    <h4 className="font-semibold text-white mb-4">Share Your Theory</h4>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-2">Theory Type</label>
+                        <select
+                          value={newTheory.type}
+                          onChange={(e) => setNewTheory({ ...newTheory, type: e.target.value })}
+                          className="w-full bg-mystery-800 border border-mystery-700 rounded-lg p-2 text-white text-sm focus:ring-2 focus:ring-mystery-500 outline-none"
+                        >
+                          <option>Natural Phenomenon</option>
+                          <option>UFO/Extraterrestrial</option>
+                          <option>Government/Military</option>
+                          <option>Weather Balloon</option>
+                          <option>Hoax/Misidentification</option>
+                          <option>Cryptid/Unknown Creature</option>
+                          <option>Paranormal Activity</option>
+                          <option>Other</option>
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-2">Title</label>
+                        <input
+                          type="text"
+                          value={newTheory.title}
+                          onChange={(e) => setNewTheory({ ...newTheory, title: e.target.value })}
+                          placeholder="Brief summary of your theory..."
+                          className="w-full bg-mystery-800 border border-mystery-700 rounded-lg p-2 text-white text-sm focus:ring-2 focus:ring-mystery-500 outline-none"
+                          maxLength={200}
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-2">Description</label>
+                        <textarea
+                          value={newTheory.description}
+                          onChange={(e) => setNewTheory({ ...newTheory, description: e.target.value })}
+                          placeholder="Explain your theory in detail..."
+                          className="w-full bg-mystery-800 border border-mystery-700 rounded-lg p-3 text-white text-sm focus:ring-2 focus:ring-mystery-500 outline-none resize-none"
+                          rows={4}
+                        />
+                      </div>
+                      
+                      <button
+                        onClick={handleSubmitTheory}
+                        disabled={!newTheory.title.trim() || !newTheory.description.trim()}
+                        className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium"
+                      >
+                        Submit Theory
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Theories List */}
+                <div className="space-y-4">
+                  {loadingTheories ? (
+                    <p className="text-gray-500 text-center py-8">Loading theories...</p>
+                  ) : theories.length > 0 ? (
+                    <>
+                      {/* Statistics */}
+                      <div className="bg-mystery-900/50 border border-mystery-700 rounded-lg p-4 mb-6">
+                        <h4 className="text-sm font-semibold text-gray-300 mb-3">Community Consensus</h4>
+                        <div className="space-y-2">
+                          {(() => {
+                            const totalVotes = theories.reduce((sum, t) => sum + (theoryVotes[t.id]?.count || 0), 0);
+                            const typeGroups: Record<string, number> = {};
+                            
+                            theories.forEach(t => {
+                              const votes = theoryVotes[t.id]?.count || 0;
+                              typeGroups[t.theory_type] = (typeGroups[t.theory_type] || 0) + votes;
+                            });
+                            
+                            return Object.entries(typeGroups)
+                              .sort((a, b) => b[1] - a[1])
+                              .slice(0, 5)
+                              .map(([type, votes]) => {
+                                const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                                return (
+                                  <div key={type} className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between text-xs mb-1">
+                                        <span className="text-gray-300">{type}</span>
+                                        <span className="text-mystery-400 font-semibold">{percentage}%</span>
+                                      </div>
+                                      <div className="w-full h-2 bg-mystery-800 rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-gradient-to-r from-mystery-500 to-mystery-400"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                          })()}
+                        </div>
+                      </div>
+                      
+                      {/* Theory Cards */}
+                      {theories.map((theory) => (
+                        <div key={theory.id} className="bg-mystery-900/50 border border-mystery-700 rounded-lg p-4 hover:border-mystery-600 transition-colors">
+                          <div className="flex items-start gap-4">
+                            <div className="flex flex-col items-center gap-1">
+                              <button
+                                onClick={() => handleVoteTheory(theory.id)}
+                                disabled={votingTheory === theory.id}
+                                className={`p-2 rounded transition-colors ${
+                                  theoryVotes[theory.id]?.userVoted
+                                    ? 'bg-mystery-500 text-white'
+                                    : 'bg-mystery-800 text-gray-400 hover:bg-mystery-700'
+                                }`}
+                              >
+                                <ThumbsUp className={`w-4 h-4 ${theoryVotes[theory.id]?.userVoted ? 'fill-current' : ''}`} />
+                              </button>
+                              <span className="text-white font-bold text-sm">
+                                {theoryVotes[theory.id]?.count || 0}
+                              </span>
+                            </div>
+                            
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs px-2 py-1 bg-mystery-700 text-mystery-300 rounded">
+                                      {theory.theory_type}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                      by {theory.profiles?.username || 'Anonymous'}
+                                    </span>
+                                  </div>
+                                  <h4 className="font-semibold text-white">{theory.title}</h4>
+                                </div>
+                              </div>
+                              <p className="text-gray-300 text-sm mb-2">{theory.description}</p>
+                              <span className="text-xs text-gray-500">
+                                {new Date(theory.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <p className="text-gray-500 text-sm text-center py-8">No theories yet. Be the first to share your explanation!</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
