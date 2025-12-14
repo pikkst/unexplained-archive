@@ -289,11 +289,11 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+      <div className="mb-8">
+        <div className="mb-4">
+           <h1 className="text-2xl sm:text-3xl font-bold text-white flex flex-wrap items-center gap-2 sm:gap-3">
             Investigation Console
-            {user?.investigator_status === 'approved' && <CheckCircle className="w-6 h-6 text-blue-400" />}
+            {user?.investigator_status === 'approved' && <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />}
             {verificationStatus?.verified && (
               <ProBadge
                 type="verified"
@@ -303,25 +303,26 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
               />
             )}
           </h1>
-           <p className="text-gray-400">Welcome back, {user?.username || 'Investigator'}.</p>
+           <p className="text-gray-400 text-sm sm:text-base mt-1">Welcome back, {user?.username || 'Investigator'}.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           {/* Verification Buttons */}
           {user?.investigator_status === 'approved' && !verificationStatus?.verified && (
             <button
               onClick={() => setShowVerificationModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-blue-500/20"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg flex items-center justify-center gap-2 transition-colors shadow-lg shadow-blue-500/20 text-sm sm:text-base"
             >
               <Shield className="w-4 h-4" />
-              {verificationStatus ? 'Manage Verification' : 'Get Verified'}
+              <span className="truncate">{verificationStatus ? 'Manage Verification' : 'Get Verified'}</span>
             </button>
           )}
           
           <button 
             onClick={() => setActiveTab('INVITATIONS')}
-            className="px-4 py-2 bg-mystery-800 hover:bg-mystery-700 text-white border border-mystery-600 rounded-lg flex items-center gap-2 relative"
+            className="px-4 py-2 bg-mystery-800 hover:bg-mystery-700 text-white border border-mystery-600 rounded-lg flex items-center justify-center gap-2 relative text-sm sm:text-base"
           >
-            <Mail className="w-4 h-4" /> Team Invitations
+            <Mail className="w-4 h-4" /> 
+            <span className="truncate">Team Invitations</span>
             {pendingInvitationsCount > 0 && (
               <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                 {pendingInvitationsCount}
@@ -333,24 +334,24 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
 
       {/* Subscription Promo Banner */}
       {user?.investigator_status === 'approved' && (
-        <div className="bg-gradient-to-r from-mystery-500/20 via-purple-500/20 to-blue-500/20 border-2 border-mystery-500/50 rounded-xl p-6 mb-8 hover:border-mystery-400/70 transition-all">
-          <div className="flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-mystery-500/30 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-mystery-300" />
+        <div className="bg-gradient-to-r from-mystery-500/20 via-purple-500/20 to-blue-500/20 border-2 border-mystery-500/50 rounded-xl p-4 sm:p-6 mb-8 hover:border-mystery-400/70 transition-all">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+            <div className="flex items-start gap-3 sm:gap-4 flex-1">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-mystery-500/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-mystery-300" />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base sm:text-xl font-bold text-white mb-1 flex items-center gap-2">
                   ⭐ Unlock AI-Powered Investigation Tools
                 </h3>
-                <p className="text-gray-300 text-sm">
+                <p className="text-gray-300 text-xs sm:text-sm">
                   Upgrade to Basic, Premium, or Pro to access AI image analysis, document scanning, and advanced research tools
                 </p>
               </div>
             </div>
             <button
               onClick={() => navigate('/subscription/plans')}
-              className="px-6 py-3 bg-mystery-500 hover:bg-mystery-400 text-white rounded-lg font-semibold flex items-center gap-2 whitespace-nowrap transition-all shadow-lg shadow-mystery-500/30"
+              className="w-full sm:w-auto px-6 py-3 bg-mystery-500 hover:bg-mystery-400 text-white rounded-lg font-semibold flex items-center justify-center gap-2 whitespace-nowrap transition-all shadow-lg shadow-mystery-500/30 text-sm sm:text-base"
             >
               View Plans <ArrowRight className="w-4 h-4" />
             </button>

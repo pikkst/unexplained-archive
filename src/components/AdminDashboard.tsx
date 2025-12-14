@@ -1690,14 +1690,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                   )}
                   <p className="text-xs text-purple-300/60 mt-1">Real-time users</p>
                 </div>
-                    <AnimatedMetric value={analyticsData.uniqueVisitors} />
-                  </p>
-                  {autoRefreshEnabled && (
-                    <div className="absolute top-2 right-2">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                  )}
-                </div>
 
                 <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
                   <div className="flex items-center gap-3 mb-2">
