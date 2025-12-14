@@ -7,12 +7,15 @@
     <title>Unexplained Archive</title>
     
     <!-- Google Analytics (GA4) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BSNYJW4KV8"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BSNYJW4KV8" onerror="console.warn('GA script blocked')"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-BSNYJW4KV8');
+      gtag('config', 'G-BSNYJW4KV8', {
+        'send_page_view': true,
+        'anonymize_ip': true
+      });
     </script>
     
     <!-- GitHub Pages SPA redirect recovery -->
@@ -26,7 +29,6 @@
       })();
     </script>
     
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Leaflet CSS -->

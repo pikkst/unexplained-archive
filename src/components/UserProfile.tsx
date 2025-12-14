@@ -150,11 +150,15 @@ export const UserProfile: React.FC = () => {
     const loadInvestigatorStats = async () => {
       try {
         // Get reputation
-        const { data: repData } = await supabase
+        const { data: repData, error: repError } = await supabase
           .from('reputation')
           .select('total_points, cases_resolved')
           .eq('user_id', profile.id)
-          .single();
+          .maybeSingle();
+        
+        if (repError) {
+          console.error('Reputation fetch error:', repError);
+        }
 
         // Get resolved cases with ratings and feedback
         const { data: resolvedCases } = await supabase
