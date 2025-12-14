@@ -245,9 +245,10 @@ CREATE TABLE user_saved_cases (
 
 ## PHASE 3: MAJOR FEATURES (3-4 weeks)
 
-### [ ] 11. Geographic Heatmap (Admin Analytics)
+### [✓] 11. Geographic Heatmap (Admin Analytics) ✅ COMPLETE
 **Time:** 120 min  
 **Location:** AdminDashboard.tsx - Analytics tab
+**Status:** Live - Interactive heatmap shows visit distribution by country with regional breakdown
 
 ```typescript
 // Replace "Top Countries" list with interactive heatmap
@@ -449,9 +450,10 @@ CREATE TABLE poll_earnings (
 
 ---
 
-### [ ] 15. Evidence Upvoting System
+### [✓] 15. Evidence Upvoting System ✅ COMPLETE
 **Time:** 120 min  
 **Location:** CaseDetail.tsx, CaseComments.tsx
+**Status:** Live - Comments have upvote buttons with vote counts, auto-update triggers
 
 ```sql
 -- Create table
@@ -479,9 +481,10 @@ const sortedComments = comments.sort((a, b) => (b.likes || 0) - (a.likes || 0));
 
 ---
 
-### [ ] 16. Community Voting/Theories
+### [✓] 16. Community Voting/Theories ✅ COMPLETE
 **Time:** 180 min  
 **Location:** CaseDetail.tsx - new "Theories" tab
+**Status:** Live - Theories tab with submission form, voting system, and consensus breakdown
 
 ```sql
 -- Create table
