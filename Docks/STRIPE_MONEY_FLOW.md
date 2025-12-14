@@ -2,11 +2,12 @@
 
 ## 📊 ÜLEVAADE
 
-Praegu on **3 erinevat rahavoogu**:
+Platvormi maksesüsteem toetab **4 erinevat rahavoogu**:
 
 ### 1️⃣ **Wallet Deposit** (Kasutaja laeb raha oma rahakotti)
-### 2️⃣ **Case Donation** (Stripe → Case Escrow)
-### 3️⃣ **Platform Donation** (Wallet Balance → Platform)
+### 2️⃣ **Case Donation** (Stripe → Case Escrow) - **10% TEENUSTASU**
+### 3️⃣ **Platform Donation via Stripe** (Pank → Platform) - **0% TEENUSTASU**
+### 4️⃣ **Platform/Case Donation via Wallet** (Wallet Balance → Target) - **0% TEENUSTASU**
 
 ---
 
@@ -226,15 +227,20 @@ TULEMUS: Kasutaja wallet = €80
 
 ## 🔑 VÕTME ERINEVUSED
 
-| Aspekt | Stripe Deposit | Stripe Case Donation | Wallet Platform Donation | Wallet Case Donation |
-|--------|---------------|---------------------|------------------------|---------------------|
-| **Maksemeetod** | 💳 Krediitkaart | 💳 Krediitkaart | 💰 Wallet balance | 💰 Wallet balance |
-| **Stripe kaasatud?** | ✅ Jah | ✅ Jah | ❌ EI | ❌ EI |
-| **Platform Fee** | 0% (kogu summa kasutajale) | 10% (€5 kui €50) | 0% (kogu summa platvormile) | **0% (100% case'ile!)** |
-| **Escrow?** | ❌ Ei | ✅ Jah (lukustatud) | ❌ Ei | ✅ Jah |
-| **Raha sihtkoht** | User wallet | Case escrow | Platform wallet (otse) | Case reward pool |
-| **Stripe konto** | +€100 | +€50 | €0 (internal) | €0 (internal) |
-| **Väljavõtmine** | Kasutaja saab hiljem välja võtta | Vabaneb kui case resolved | Platform tulu |
+| Aspekt | Stripe Deposit | Stripe Case Donation | Stripe Platform Donation | Wallet Case/Platform Donation |
+|--------|---------------|---------------------|------------------------|------------------------------|
+| **Maksemeetod** | 💳 Krediitkaart | 💳 Krediitkaart | 💳 Krediitkaart | 💰 Wallet balance |
+| **Stripe kaasatud?** | ✅ Jah | ✅ Jah | ✅ Jah | ❌ EI |
+| **Platform Fee** | 0% | **10%** (€5 kui €50) | **0%** | **0%** |
+| **Escrow?** | ❌ Ei | ✅ Jah (lukustatud) | ❌ Ei | ✅ (case) / ❌ (platform) |
+| **Raha sihtkoht** | User wallet | Case escrow | Platform revenue | Case/Platform (full) |
+| **Stripe konto** | +€100 | +€50 | +€50 | €0 (internal) |
+| **Miks fee?** | N/A | Infrastruktuur + teenused | **POLE - kogu raha platvormile** | Sisemine, tasuta |
+
+### 💡 PÕHIMÕTE:
+- **Platvormile otse annetused = 0% fee** - Kogu raha läheb platvormi arendamiseks
+- **Juhtumitele annetused Stripe'iga = 10% fee** - Platvorm pakub infrastruktuuri
+- **Wallet'ist annetused = 0% fee** - Sisemine ülekanne, ei kaasne kulusid
 
 ---
 
