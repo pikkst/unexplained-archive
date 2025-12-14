@@ -285,23 +285,23 @@ export const Navbar: React.FC = () => {
           {/* Mobile Menu */}
           {showMobileMenu && (
             <div className="lg:hidden border-t border-mystery-700 py-4 space-y-2">
-              <Link to="/explore" className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
+              <Link to="/explore" onClick={() => setShowMobileMenu(false)} className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
                 Explore Cases
               </Link>
-              <Link to="/map" className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
+              <Link to="/map" onClick={() => setShowMobileMenu(false)} className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
                 Map
               </Link>
-              <Link to="/forum" className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
+              <Link to="/forum" onClick={() => setShowMobileMenu(false)} className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
                 Forum
               </Link>
-              <Link to="/leaderboard" className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
+              <Link to="/leaderboard" onClick={() => setShowMobileMenu(false)} className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
                 Leaderboard
               </Link>
-              <Link to="/donate" className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
+              <Link to="/donate" onClick={() => setShowMobileMenu(false)} className="block px-4 py-2 text-gray-300 hover:bg-mystery-800 rounded">
                 Donate
               </Link>
               {user && (
-                <Link to="/submit-case" className="block px-4 py-2 bg-mystery-500 text-white rounded">
+                <Link to="/submit-case" onClick={() => setShowMobileMenu(false)} className="block px-4 py-2 bg-mystery-500 text-white rounded">
                   Submit Case
                 </Link>
               )}
