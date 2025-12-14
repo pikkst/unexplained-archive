@@ -26,8 +26,8 @@ USING (
   EXISTS (
     SELECT 1 FROM case_team_members
     WHERE case_team_members.case_id = case_notes.case_id
-    AND case_team_members.user_id = auth.uid()
-    AND case_team_members.status = 'accepted'
+    AND case_team_members.investigator_id = auth.uid()
+    AND case_team_members.status = 'active'
   )
 );
 
@@ -38,8 +38,8 @@ WITH CHECK (
   EXISTS (
     SELECT 1 FROM case_team_members
     WHERE case_team_members.case_id = case_notes.case_id
-    AND case_team_members.user_id = auth.uid()
-    AND case_team_members.status = 'accepted'
+    AND case_team_members.investigator_id = auth.uid()
+    AND case_team_members.status = 'active'
   )
   AND author_id = auth.uid()
 );
