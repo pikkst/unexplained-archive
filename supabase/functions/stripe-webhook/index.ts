@@ -31,9 +31,7 @@ serve(async (req) => {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
       console.error('Webhook signature verification failed:', err.message);
-      // For testing: Parse event without verification (REMOVE IN PRODUCTION!)
-      console.warn('⚠️ TESTING MODE: Processing webhook without signature verification');
-      event = JSON.parse(body);
+      return new Response('Invalid signature', { status: 400 });
     }
 
     // Initialize Supabase Admin Client
@@ -41,6 +39,21 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // 🔒 SECURITY: Check for duplicate webhook events (replay attack protection)
+    const { data: idempotencyCheck } = await supabaseAdmin.rpc('process_webhook_event', {
+      p_stripe_event_id: event.id,
+      p_event_type: event.type,
+      p_payload: event
+    });
+
+    if (idempotencyCheck && !idempotencyCheck.success) {
+      console.log('⚠️ Duplicate webhook event detected:', event.id);
+      return new Response(JSON.stringify({ received: true, duplicate: true }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200 // Return 200 to prevent Stripe retries
+      });
+    }
 
     // Handle different event types
     switch (event.type) {

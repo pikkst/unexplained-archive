@@ -1237,23 +1237,27 @@ LANGUAGE plpgsql SECURITY DEFINER
 AS $$
 DECLARE
     v_wallet_id uuid;
-    v_current_balance numeric;
+    v_new_balance numeric;
 BEGIN
-    -- Get wallet
-    SELECT id, balance INTO v_wallet_id, v_current_balance 
-    FROM wallets WHERE user_id = p_user_id;
+    -- Get wallet ID
+    SELECT id INTO v_wallet_id FROM wallets WHERE user_id = p_user_id;
     
     IF v_wallet_id IS NULL THEN
         RETURN jsonb_build_object('success', false, 'error', 'Wallet not found');
     END IF;
     
-    -- Check balance
-    IF v_current_balance < p_amount THEN
+    -- Atomic balance deduction with race condition protection
+    -- This UPDATE will fail if balance becomes negative
+    UPDATE wallets 
+    SET balance = balance - p_amount 
+    WHERE id = v_wallet_id 
+    AND balance >= p_amount  -- Atomic check prevents race conditions
+    RETURNING balance INTO v_new_balance;
+    
+    -- If update affected 0 rows, balance was insufficient
+    IF v_new_balance IS NULL THEN
         RETURN jsonb_build_object('success', false, 'error', 'Insufficient balance');
     END IF;
-    
-    -- Deduct from wallet
-    UPDATE wallets SET balance = balance - p_amount WHERE id = v_wallet_id;
     
     -- Record platform fee
     IF p_fee > 0 THEN
@@ -1261,7 +1265,7 @@ BEGIN
         VALUES (p_fee, 'platform_fee', 'Withdrawal fee');
     END IF;
     
-    RETURN jsonb_build_object('success', true);
+    RETURN jsonb_build_object('success', true, 'new_balance', v_new_balance);
 END;
 $$;
 

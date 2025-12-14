@@ -50,6 +50,24 @@ Deno.serve(async (req) => {
       );
     }
 
+    // 🔒 SECURITY: Check rate limit (max 3 withdrawals per day)
+    const { data: rateLimitCheck, error: rateLimitError } = await supabaseClient
+      .rpc('check_withdrawal_rate_limit', { p_user_id: user.id });
+
+    if (rateLimitError) {
+      console.error('Rate limit check error:', rateLimitError);
+      // Continue anyway - don't block on rate limit failures
+    } else if (rateLimitCheck && !rateLimitCheck.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: rateLimitCheck.error,
+          remaining: rateLimitCheck.remaining,
+          reset_at: rateLimitCheck.reset_at
+        }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Now, perform operations as the service role, but with the user's ID.
     // This is a common pattern for security and data integrity.
     const { data: wallet, error: walletError } = await supabaseClient

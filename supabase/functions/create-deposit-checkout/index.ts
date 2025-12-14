@@ -14,10 +14,14 @@ Deno.serve(async (req) => {
   try {
     // Initialize Stripe inside the handler to avoid initialization errors blocking OPTIONS
     const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY');
+    const STRIPE_OPERATIONS_ACCOUNT_ID = Deno.env.get('STRIPE_OPERATIONS_ACCOUNT_ID');
     
     if (!STRIPE_SECRET_KEY) {
       throw new Error('STRIPE_SECRET_KEY not configured');
     }
+    
+    // Operations account is optional - if not set, use main account (for testing)
+    const useOperationsAccount = !!STRIPE_OPERATIONS_ACCOUNT_ID;
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
       apiVersion: '2023-10-16',
@@ -82,8 +86,10 @@ Deno.serve(async (req) => {
         .eq('id', userId);
     }
 
-    // Create a Stripe Checkout session using main account (not connected account)
-    const session = await stripe.checkout.sessions.create({
+    // Create a Stripe Checkout session
+    // If OPERATIONS_ACCOUNT_ID is set, funds go to operations account
+    // Otherwise use main account (for development/testing)
+    const sessionParams: any = {
       payment_method_types: ['card'],
       line_items: [{
         price_data: {
@@ -112,7 +118,14 @@ Deno.serve(async (req) => {
         userId: userId,
         amount: amount.toString(),
       },
-    });
+    };
+
+    // Create session on operations account if configured, otherwise on main account
+    const session = useOperationsAccount
+      ? await stripe.checkout.sessions.create(sessionParams, {
+          stripeAccount: STRIPE_OPERATIONS_ACCOUNT_ID,
+        })
+      : await stripe.checkout.sessions.create(sessionParams);
 
     return new Response(JSON.stringify({ sessionId: session.id, checkoutUrl: session.url }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
