@@ -24,10 +24,25 @@ serve(async (req) => {
     // Get Google API credentials from environment
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
     const GA_PROPERTY_ID = Deno.env.get('GA_PROPERTY_ID') || 'properties/516453057'; // Default Property ID
+    const GOOGLE_SERVICE_ACCOUNT = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_JSON'); // Service Account JSON
     
-    if (!GOOGLE_API_KEY) {
-      throw new Error('GOOGLE_API_KEY not configured');
+    if (!GOOGLE_API_KEY && !GOOGLE_SERVICE_ACCOUNT) {
+      throw new Error('GOOGLE_API_KEY or GOOGLE_SERVICE_ACCOUNT_JSON not configured');
     }
+
+    // Note: Google Analytics Data API requires OAuth2, not just API key
+    // For now, return a helpful error message
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: 'Google Analytics Data API requires OAuth2 authentication. Please use the Supabase analytics_events table or configure Service Account credentials.',
+        fallback: 'analytics_events'
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200, // Return 200 so frontend can handle gracefully
+      }
+    );
 
     // Verify admin access
     const authHeader = req.headers.get('Authorization');
