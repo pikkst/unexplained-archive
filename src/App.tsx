@@ -255,25 +255,25 @@ function AppContent() {
             <div>
               <h4 className="text-white font-bold mb-4">Quick Links</h4>
               <ul className="space-y-2 text-sm text-gray-500">
-                <li><a href="/explore" className="hover:text-mystery-400">Explore Cases</a></li>
-                <li><a href="/submit-case" className="hover:text-mystery-400">Submit a Case</a></li>
-                <li><a href="/map" className="hover:text-mystery-400">Case Map</a></li>
+                <li><Link to="/explore" className="hover:text-mystery-400">Explore Cases</Link></li>
+                <li><Link to="/submit-case" className="hover:text-mystery-400">Submit a Case</Link></li>
+                <li><Link to="/map" className="hover:text-mystery-400">Case Map</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-bold mb-4">Community</h4>
               <ul className="space-y-2 text-sm text-gray-500">
-                <li><a href="/forum" className="hover:text-mystery-400">Forum</a></li>
-                <li><a href="/leaderboard" className="hover:text-mystery-400">Leaderboard</a></li>
-                <li><a href="/donate" className="hover:text-mystery-400">Donate</a></li>
+                <li><Link to="/forum" className="hover:text-mystery-400">Forum</Link></li>
+                <li><Link to="/leaderboard" className="hover:text-mystery-400">Leaderboard</Link></li>
+                <li><Link to="/donate" className="hover:text-mystery-400">Donate</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-white font-bold mb-4">Legal</h4>
               <ul className="space-y-2 text-sm text-gray-500">
-                <li><a href="/terms" className="hover:text-mystery-400">Privacy Policy</a></li>
-                <li><a href="/terms" className="hover:text-mystery-400">Terms of Service</a></li>
-                <li><a href="/contact" className="hover:text-mystery-400">Contact Us</a></li>
+                <li><Link to="/terms" className="hover:text-mystery-400">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="hover:text-mystery-400">Terms of Service</Link></li>
+                <li><Link to="/contact" className="hover:text-mystery-400">Contact Us</Link></li>
               </ul>
             </div>
           </div>
