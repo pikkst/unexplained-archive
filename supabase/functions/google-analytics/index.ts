@@ -23,7 +23,7 @@ serve(async (req) => {
   try {
     // Get Google API credentials from environment
     const GOOGLE_API_KEY = Deno.env.get('GOOGLE_API_KEY');
-    const GA_PROPERTY_ID = Deno.env.get('GA_PROPERTY_ID'); // Format: properties/123456789
+    const GA_PROPERTY_ID = Deno.env.get('GA_PROPERTY_ID') || 'properties/516453057'; // Default Property ID
     
     if (!GOOGLE_API_KEY) {
       throw new Error('GOOGLE_API_KEY not configured');
