@@ -6,6 +6,7 @@ import { Case } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { MassNotificationPanel } from './MassNotificationPanel';
 import { SubscriptionGroupNotifications } from './SubscriptionGroupNotifications';
+import WorldMapVisualization from './WorldMapVisualization';
 
 const COLORS = ['#6366f1', '#22d3ee', '#a855f7', '#94a3b8', '#f59e0b', '#10b981'];
 
@@ -70,6 +71,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   // Forum Moderation State
   const [forumPosts, setForumPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  
+  // Auto-refresh timer for analytics
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
   useEffect(() => {
     loadAdminData();
@@ -80,6 +84,124 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       loadForumPosts();
     }
   }, [activeTab]);
+  
+  // Auto-refresh analytics every 30 seconds when on analytics tab
+  useEffect(() => {
+    if (activeTab === 'analytics' && autoRefreshEnabled) {
+      const interval = setInterval(() => {
+        loadAnalytics();
+      }, 30000); // 30 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, autoRefreshEnabled]);
+
+  const loadAnalytics = async () => {
+    try {
+      const { data: analyticsEvents } = await supabase
+        .from('analytics_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (analyticsEvents) {
+        // Calculate metrics
+        const pageViews = analyticsEvents.length;
+        const uniqueVisitors = new Set(analyticsEvents.map(e => e.visitor_id)).size;
+        
+        // Top pages
+        const pageCount: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.page_path) {
+            pageCount[e.page_path] = (pageCount[e.page_path] || 0) + 1;
+          }
+        });
+        const topPages = Object.entries(pageCount)
+          .map(([page, views]) => ({ page, views }))
+          .sort((a, b) => b.views - a.views)
+          .slice(0, 10);
+
+        // Traffic sources
+        const sourceCount: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.referrer) {
+            sourceCount[e.referrer] = (sourceCount[e.referrer] || 0) + 1;
+          }
+        });
+        const trafficSources = Object.entries(sourceCount)
+          .map(([source, visits]) => ({ source, visits }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 10);
+
+        // Top countries
+        const countryCount: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.country) {
+            countryCount[e.country] = (countryCount[e.country] || 0) + 1;
+          }
+        });
+        const topCountries = Object.entries(countryCount)
+          .map(([country, visits]) => ({ country, visits }))
+          .sort((a, b) => b.visits - a.visits);
+
+        // Calculate session duration
+        const sessionTimes: { [key: string]: { start: Date; end: Date } } = {};
+        analyticsEvents.forEach(e => {
+          if (e.session_id) {
+            const eventTime = new Date(e.created_at);
+            if (!sessionTimes[e.session_id]) {
+              sessionTimes[e.session_id] = { start: eventTime, end: eventTime };
+            } else {
+              if (eventTime < sessionTimes[e.session_id].start) {
+                sessionTimes[e.session_id].start = eventTime;
+              }
+              if (eventTime > sessionTimes[e.session_id].end) {
+                sessionTimes[e.session_id].end = eventTime;
+              }
+            }
+          }
+        });
+        
+        const sessionDurations = Object.values(sessionTimes).map(({ start, end }) => 
+          (end.getTime() - start.getTime()) / 1000
+        ).filter(d => d > 0);
+        
+        const avgDuration = sessionDurations.length > 0
+          ? sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length
+          : 0;
+        const avgSessionDuration = avgDuration > 0 
+          ? `${Math.floor(avgDuration / 60)}m ${Math.floor(avgDuration % 60)}s`
+          : 'N/A';
+
+        // Calculate bounce rate
+        const sessionPages: { [key: string]: number } = {};
+        analyticsEvents.forEach(e => {
+          if (e.session_id) {
+            sessionPages[e.session_id] = (sessionPages[e.session_id] || 0) + 1;
+          }
+        });
+        const totalSessions = Object.keys(sessionPages).length;
+        const bouncedSessions = Object.values(sessionPages).filter(count => count === 1).length;
+        const bounceRate = totalSessions > 0 
+          ? `${Math.round((bouncedSessions / totalSessions) * 100)}%`
+          : 'N/A';
+
+        setAnalyticsData({
+          pageViews,
+          uniqueVisitors,
+          avgSessionDuration,
+          bounceRate,
+          topPages,
+          trafficSources,
+          topCountries
+        });
+      }
+      
+      await loadCategoryTrends();
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+    }
+  };
 
   const loadAdminData = async () => {
     try {
@@ -267,6 +389,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       
       // Load articles
       await loadArticles();
+      
+      // Load analytics data
+      await loadAnalytics();
     } catch (error) {
       console.error('Failed to load admin data:', error);
     } finally {
@@ -274,117 +399,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     }
   };
 
-  const loadAnalytics = async () => {
-    try {
-      // In production, this would fetch from your analytics service (Google Analytics, Plausible, etc.)
-      // For now, we'll use mock data or fetch from a custom analytics table
-      const { data: analyticsEvents } = await supabase
-        .from('analytics_events')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000);
-
-      if (analyticsEvents) {
-        // Calculate metrics
-        const pageViews = analyticsEvents.length;
-        const uniqueVisitors = new Set(analyticsEvents.map(e => e.visitor_id)).size;
-        
-        // Top pages
-        const pageCount: { [key: string]: number } = {};
-        analyticsEvents.forEach(e => {
-          if (e.page_path) {
-            pageCount[e.page_path] = (pageCount[e.page_path] || 0) + 1;
-          }
-        });
-        const topPages = Object.entries(pageCount)
-          .map(([page, views]) => ({ page, views }))
-          .sort((a, b) => b.views - a.views)
-          .slice(0, 10);
-
-        // Traffic sources
-        const sourceCount: { [key: string]: number } = {};
-        analyticsEvents.forEach(e => {
-          if (e.referrer) {
-            sourceCount[e.referrer] = (sourceCount[e.referrer] || 0) + 1;
-          }
-        });
-        const trafficSources = Object.entries(sourceCount)
-          .map(([source, visits]) => ({ source, visits }))
-          .sort((a, b) => b.visits - a.visits)
-          .slice(0, 10);
-
-        // Top countries
-        const countryCount: { [key: string]: number } = {};
-        analyticsEvents.forEach(e => {
-          if (e.country) {
-            countryCount[e.country] = (countryCount[e.country] || 0) + 1;
-          }
-        });
-        const topCountries = Object.entries(countryCount)
-          .map(([country, visits]) => ({ country, visits }))
-          .sort((a, b) => b.visits - a.visits)
-          .slice(0, 10);
-
-        // Calculate session duration from session start/end times
-        const sessionTimes: { [key: string]: { start: Date; end: Date } } = {};
-        analyticsEvents.forEach(e => {
-          if (e.session_id) {
-            const eventTime = new Date(e.created_at);
-            if (!sessionTimes[e.session_id]) {
-              sessionTimes[e.session_id] = { start: eventTime, end: eventTime };
-            } else {
-              if (eventTime < sessionTimes[e.session_id].start) {
-                sessionTimes[e.session_id].start = eventTime;
-              }
-              if (eventTime > sessionTimes[e.session_id].end) {
-                sessionTimes[e.session_id].end = eventTime;
-              }
-            }
-          }
-        });
-        
-        const sessionDurations = Object.values(sessionTimes).map(({ start, end }) => 
-          (end.getTime() - start.getTime()) / 1000 // seconds
-        ).filter(d => d > 0); // Only sessions with multiple events
-        
-        const avgDuration = sessionDurations.length > 0
-          ? sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length
-          : 0;
-        const avgSessionDuration = avgDuration > 0 
-          ? `${Math.floor(avgDuration / 60)}m ${Math.floor(avgDuration % 60)}s`
-          : 'N/A';
-
-        // Calculate bounce rate (sessions with only 1 page view)
-        const sessionPages: { [key: string]: number } = {};
-        analyticsEvents.forEach(e => {
-          if (e.session_id) {
-            sessionPages[e.session_id] = (sessionPages[e.session_id] || 0) + 1;
-          }
-        });
-        const totalSessions = Object.keys(sessionPages).length;
-        const bouncedSessions = Object.values(sessionPages).filter(count => count === 1).length;
-        const bounceRate = totalSessions > 0 
-          ? `${Math.round((bouncedSessions / totalSessions) * 100)}%`
-          : 'N/A';
-
-        setAnalyticsData({
-          pageViews,
-          uniqueVisitors,
-          avgSessionDuration,
-          bounceRate,
-          topPages,
-          trafficSources,
-          topCountries
-        });
-      }
-      
-      // Load category trends data
-      await loadCategoryTrends();
-    } catch (error) {
-      console.error('Failed to load analytics:', error);
-    }
-  };
-  
   const loadCategoryTrends = async () => {
     try {
       // Get case counts by category for last 6 months
@@ -1575,123 +1589,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
 
               {/* Geographic Heatmap */}
               <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
-                  <Globe className="w-5 h-5 text-mystery-400" />
-                  Geographic Distribution Heatmap
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-mystery-400" />
+                    Geographic Distribution - World Map
+                  </h3>
+                  <button
+                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                      autoRefreshEnabled
+                        ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                        : 'bg-mystery-700 text-gray-400 hover:bg-mystery-600'
+                    }`}
+                  >
+                    {autoRefreshEnabled ? '● Auto-refresh ON' : '○ Auto-refresh OFF'}
+                  </button>
+                </div>
                 
                 {analyticsData.topCountries.length === 0 ? (
                   <p className="text-gray-500 text-center py-8">No geographic data available</p>
                 ) : (
-                  <div>
-                    {/* Heatmap visualization */}
-                    <div className="mb-6">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Top 10 Countries Bar Chart */}
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-300 mb-3">Top 10 Countries by Visits</h4>
-                          <div className="space-y-2">
-                            {analyticsData.topCountries.slice(0, 10).map((country, idx) => {
-                              const maxVisits = Math.max(...analyticsData.topCountries.map(c => c.visits));
-                              const percentage = (country.visits / maxVisits) * 100;
-                              
-                              return (
-                                <div key={idx} className="group">
-                                  <div className="flex items-center justify-between text-sm mb-1">
-                                    <span className="text-gray-300 font-medium flex items-center gap-2">
-                                      <span className={`inline-block w-6 h-4 rounded ${
-                                        idx === 0 ? 'bg-green-500' :
-                                        idx === 1 ? 'bg-blue-500' :
-                                        idx === 2 ? 'bg-purple-500' :
-                                        'bg-mystery-500'
-                                      }`}></span>
-                                      {country.country}
-                                    </span>
-                                    <span className="text-mystery-400 font-bold">{country.visits}</span>
-                                  </div>
-                                  <div className="w-full h-6 bg-mystery-900 rounded-full overflow-hidden">
-                                    <div 
-                                      className={`h-full transition-all duration-500 ${
-                                        idx === 0 ? 'bg-gradient-to-r from-green-500 to-green-400' :
-                                        idx === 1 ? 'bg-gradient-to-r from-blue-500 to-blue-400' :
-                                        idx === 2 ? 'bg-gradient-to-r from-purple-500 to-purple-400' :
-                                        'bg-gradient-to-r from-mystery-500 to-mystery-400'
-                                      } flex items-center justify-end pr-2`}
-                                      style={{ width: `${percentage}%` }}
-                                    >
-                                      <span className="text-xs text-white font-semibold">
-                                        {Math.round(percentage)}%
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        
-                        {/* Regional Distribution Pie */}
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-300 mb-3">Regional Distribution</h4>
-                          <div className="space-y-3">
-                            {(() => {
-                              const regions = {
-                                'North America': ['US', 'USA', 'United States', 'Canada', 'Mexico'],
-                                'Europe': ['UK', 'Germany', 'France', 'Spain', 'Italy', 'Netherlands', 'Poland', 'Sweden'],
-                                'Asia': ['China', 'Japan', 'India', 'South Korea', 'Singapore', 'Thailand'],
-                                'South America': ['Brazil', 'Argentina', 'Chile', 'Colombia'],
-                                'Oceania': ['Australia', 'New Zealand'],
-                                'Africa': ['South Africa', 'Nigeria', 'Egypt', 'Kenya']
-                              };
-                              
-                              const regionalData = Object.entries(regions).map(([region, countries]) => {
-                                const visits = analyticsData.topCountries
-                                  .filter(c => countries.some(country => c.country.includes(country)))
-                                  .reduce((sum, c) => sum + c.visits, 0);
-                                return { region, visits };
-                              }).filter(r => r.visits > 0);
-                              
-                              const totalVisits = regionalData.reduce((sum, r) => sum + r.visits, 0);
-                              
-                              return regionalData.map((data, idx) => {
-                                const percentage = (data.visits / totalVisits) * 100;
-                                return (
-                                  <div key={idx} className="flex items-center gap-3">
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between text-sm mb-1">
-                                        <span className="text-gray-300">{data.region}</span>
-                                        <span className="text-mystery-400 font-semibold">{Math.round(percentage)}%</span>
-                                      </div>
-                                      <div className="w-full h-4 bg-mystery-900 rounded-full overflow-hidden">
-                                        <div 
-                                          className="h-full bg-gradient-to-r from-mystery-500 to-mystery-400"
-                                          style={{ width: `${percentage}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Country Grid */}
-                    <div className="border-t border-mystery-700 pt-4 mt-4">
-                      <h4 className="text-sm font-semibold text-gray-300 mb-3">All Countries</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                        {analyticsData.topCountries.map((country, idx) => (
-                          <div key={idx} className="p-3 bg-mystery-900/50 rounded-lg text-center hover:bg-mystery-900 transition-colors">
-                            <p className="text-xl mb-1">🌍</p>
-                            <p className="text-xs text-gray-300 mb-1 truncate">{country.country}</p>
-                            <p className="text-sm font-bold text-mystery-400">{country.visits}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  <WorldMapVisualization 
+                    countryData={analyticsData.topCountries}
+                    autoRefresh={autoRefreshEnabled}
+                  />
                 )}
               </div>
 
