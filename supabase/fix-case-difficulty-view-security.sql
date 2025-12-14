@@ -1,13 +1,14 @@
 -- Fix SECURITY DEFINER security issue on case_difficulty_avg view
--- This recreates the view without SECURITY DEFINER to respect RLS policies
+-- This recreates the view with explicit SECURITY INVOKER to respect RLS policies
 
--- Drop the existing view
-DROP VIEW IF EXISTS public.case_difficulty_avg;
+-- Drop the existing view (CASCADE removes dependent objects if any)
+DROP VIEW IF EXISTS public.case_difficulty_avg CASCADE;
 
--- Recreate without SECURITY DEFINER (uses SECURITY INVOKER by default)
--- This means the view will execute with the privileges of the calling user,
+-- Recreate with explicit security_invoker = true
+-- This forces the view to execute with the privileges of the calling user,
 -- respecting all RLS policies and permissions
-CREATE VIEW public.case_difficulty_avg AS
+CREATE VIEW public.case_difficulty_avg 
+WITH (security_invoker = true) AS
 SELECT 
   case_id,
   ROUND(AVG(difficulty_rating)::numeric, 1) as avg_difficulty,
