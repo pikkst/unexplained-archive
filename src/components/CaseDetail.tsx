@@ -10,6 +10,7 @@ import { TeamInvitationModal } from './TeamInvitationModal';
 import { RewardSplitModal } from './RewardSplitModal';
 import { BoostPurchaseModal } from './BoostPurchaseModal';
 import { TeamDashboard } from './TeamDashboard';
+import { CaseNotesSection } from './CaseNotesSection';
 import { isTeamLeader, getCaseTeam } from '../services/teamService';
 import { caseService } from '../services/caseService';
 import { boostService } from '../services/boostService';
@@ -1694,6 +1695,11 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
                     onRewardSplitClick={() => setShowRewardSplitModal(true)}
                   />
                 </div>
+              )}
+
+              {/* Case Notes Section (for team members) */}
+              {isTeamMember && user && (
+                <CaseNotesSection caseId={caseData.id} userId={user.id} />
               )}
               
               {/* Voting / Dispute Section */}
