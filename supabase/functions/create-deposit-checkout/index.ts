@@ -43,10 +43,10 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get user details for Stripe customer info
+    // Get user details for email
     const { data: userProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('stripe_customer_id, username')
+      .select('username')
       .eq('id', userId)
       .single();
 
@@ -55,29 +55,11 @@ Deno.serve(async (req) => {
     // Get email from auth.users
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (authError) throw authError;
-    
-    // Create Stripe customer if they don't have one
-    let stripeCustomerId = userProfile.stripe_customer_id;
-    if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: authUser.user.email,
-        metadata: {
-          supabase_user_id: userId,
-          username: userProfile.username || 'Unknown',
-        },
-      });
-      stripeCustomerId = customer.id;
-      
-      // Update profile with new Stripe customer ID
-      await supabaseAdmin
-        .from('profiles')
-        .update({ stripe_customer_id: stripeCustomerId })
-        .eq('id', userId);
-    }
 
     // Create a Stripe Checkout session
-    // Deposits go directly to the main Stripe account (Operations account)
-    // No transfer needed - money stays in the account and we track it in wallet table
+    // NOTE: We don't use customer_email or customer parameter when using connected accounts
+    // Connected accounts have their own customer base
+    // Instead, we use customer_creation: 'always' to create customer on connected account
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{
@@ -92,7 +74,8 @@ Deno.serve(async (req) => {
         quantity: 1,
       }],
       mode: 'payment',
-      customer: stripeCustomerId,
+      customer_creation: 'always', // Create customer on connected account
+      customer_email: authUser.user.email, // Pre-fill email
       success_url: `${req.headers.get('origin')}/wallet?deposit=success`,
       cancel_url: `${req.headers.get('origin')}/wallet?deposit=canceled`,
       payment_intent_data: {
