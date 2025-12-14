@@ -49,6 +49,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const [analyticsData, setAnalyticsData] = useState({
     pageViews: 0,
     uniqueVisitors: 0,
+    activeUsersNow: 0,
     avgSessionDuration: '0m',
     bounceRate: '0%',
     topPages: [] as { page: string; views: number }[],
@@ -146,22 +147,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
         
-        const { data: gaData, error: gaError } = await supabase.functions.invoke('google-analytics', {
-          body: { action: 'fetch_analytics' }
-        });
+        // Fetch both regular analytics and realtime data
+        const [gaResponse, realtimeResponse] = await Promise.all([
+          supabase.functions.invoke('google-analytics', {
+            body: { action: 'fetch_analytics' }
+          }),
+          supabase.functions.invoke('google-analytics', {
+            body: { action: 'fetch_realtime' }
+          })
+        ]);
         
         clearTimeout(timeoutId);
 
-        if (gaData?.success && gaData.data) {
+        if (gaResponse.data?.success && gaResponse.data.data) {
           console.log('✅ Using Google Analytics API data');
           setAnalyticsData({
-            pageViews: gaData.data.pageViews,
-            uniqueVisitors: gaData.data.uniqueVisitors,
-            avgSessionDuration: gaData.data.avgSessionDuration,
-            bounceRate: gaData.data.bounceRate,
-            topPages: gaData.data.topPages,
-            trafficSources: gaData.data.trafficSources,
-            topCountries: gaData.data.topCountries,
+            pageViews: gaResponse.data.data.pageViews,
+            uniqueVisitors: gaResponse.data.data.uniqueVisitors,
+            activeUsersNow: realtimeResponse.data?.data?.activeUsers || 0,
+            avgSessionDuration: gaResponse.data.data.avgSessionDuration,
+            bounceRate: gaResponse.data.data.bounceRate,
+            topPages: gaResponse.data.data.topPages,
+            trafficSources: gaResponse.data.data.trafficSources,
+            topCountries: gaResponse.data.data.topCountries,
           });
           
           await loadCategoryTrends();
@@ -169,8 +177,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           return; // Success, exit early
         }
         
-        if (gaError) {
-          console.warn('Google Analytics API not available:', gaError);
+        if (gaResponse.error) {
+          console.warn('Google Analytics API not available:', gaResponse.error);
         }
       } catch (gaError) {
         console.warn('Failed to fetch Google Analytics:', gaError);
@@ -179,16 +187,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
 
       // Fallback to Supabase analytics_events table
       console.log('📊 Using fallback Supabase analytics');
-      const { data: analyticsEvents } = await supabase
+      const { data: analyticsEvents, error: analyticsError } = await supabase
         .from('analytics_events')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1000);
 
+      console.log('Analytics events fetched:', {
+        count: analyticsEvents?.length || 0,
+        error: analyticsError,
+        sample: analyticsEvents?.[0]
+      });
+
       if (analyticsEvents) {
         // Calculate metrics
         const pageViews = analyticsEvents.length;
         const uniqueVisitors = new Set(analyticsEvents.map(e => e.visitor_id)).size;
+        
+        console.log('📈 Calculated metrics:', {
+          pageViews,
+          uniqueVisitors,
+          events: analyticsEvents.length
+        });
         
         // Top pages
         const pageCount: { [key: string]: number } = {};
@@ -1640,6 +1660,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                     <p className="text-sm text-gray-400">Unique Visitors</p>
                   </div>
                   <p className="text-3xl font-bold text-white">
+                    <AnimatedMetric value={analyticsData.uniqueVisitors} />
+                  </p>
+                  {autoRefreshEnabled && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-mystery-800 p-6 rounded-xl border border-mystery-700 relative overflow-hidden">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Activity className="w-5 h-5 text-purple-400" />
+                    <p className="text-sm text-gray-400">Active Now</p>
+                  </div>
+                  <p className="text-3xl font-bold text-white">
+                    <AnimatedMetric value={analyticsData.activeUsersNow} />
+                  </p>
+                  {autoRefreshEnabled && (
+                    <div className="absolute top-2 right-2">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                    </div>
+                  )}
+                  <p className="text-xs text-purple-300/60 mt-1">Real-time users</p>
+                </div>
                     <AnimatedMetric value={analyticsData.uniqueVisitors} />
                   </p>
                   {autoRefreshEnabled && (
