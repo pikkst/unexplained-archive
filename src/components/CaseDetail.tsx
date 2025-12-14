@@ -11,6 +11,7 @@ import { RewardSplitModal } from './RewardSplitModal';
 import { BoostPurchaseModal } from './BoostPurchaseModal';
 import { TeamDashboard } from './TeamDashboard';
 import { CaseNotesSection } from './CaseNotesSection';
+import { CaseExportButton } from './CaseExportButton';
 import { isTeamLeader, getCaseTeam } from '../services/teamService';
 import { caseService } from '../services/caseService';
 import { boostService } from '../services/boostService';
@@ -1255,7 +1256,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
 
             <div className="p-6 md:p-8 space-y-6">
               {/* Follow and Save Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Follow Case Button */}
                 <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
                   <div className="flex items-center gap-3">
@@ -1311,6 +1312,9 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
                     )}
                   </button>
                 </div>
+
+                {/* Export Case Button */}
+                <CaseExportButton caseData={caseData} />
               </div>
 
               {/* Translation Panel for Investigators/Admins */}
