@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useCases } from '../hooks/useCases';
 import { User, Case } from '../types';
-import { CheckCircle, FileSearch, Users, Star, AlertTriangle, Eye, Wallet, Shield, FolderOpen, ArrowRight, Sparkles, Mail, Award } from 'lucide-react';
+import { CheckCircle, FileSearch, Users, Star, AlertTriangle, Eye, Wallet, Shield, FolderOpen, ArrowRight, Sparkles, Mail, Award, ChevronDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AIToolsPanel } from './AIToolsPanel';
 import { TeamInvitationsPanel } from './TeamInvitationsPanel';
@@ -60,6 +60,7 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
   });
 
   const [activeTab, setActiveTab] = useState<'MY_CASES' | 'AVAILABLE' | 'WALLET' | 'INVITATIONS' | 'RESOLVED' | 'DISPUTED'>('MY_CASES');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const [showAITools, setShowAITools] = useState(false);
   const [pendingInvitationsCount, setPendingInvitationsCount] = useState(0);
@@ -400,8 +401,8 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
         {/* Main Workspace */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Tabs */}
-          <div className="flex border-b border-mystery-700 mb-4 overflow-x-auto">
+          {/* Desktop Tabs */}
+          <div className="hidden md:flex border-b border-mystery-700 mb-4">
              <button 
                 onClick={() => setActiveTab('MY_CASES')}
                 className={`pb-4 px-6 font-medium text-sm transition-colors relative whitespace-nowrap ${activeTab === 'MY_CASES' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
@@ -454,6 +455,113 @@ export const InvestigatorDashboard: React.FC<InvestigatorDashboardProps> = ({
                 )}
                 {activeTab === 'DISPUTED' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-mystery-500"></div>}
               </button>
+          </div>
+
+          {/* Mobile Dropdown Navigation */}
+          <div className="md:hidden mb-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="w-full bg-mystery-800 border border-mystery-700 rounded-lg px-4 py-3 flex items-center justify-between text-white"
+              >
+                <div className="flex items-center gap-2">
+                  {activeTab === 'MY_CASES' && (
+                    <>Assigned Cases</>
+                  )}
+                  {activeTab === 'AVAILABLE' && (
+                    <>Case Board (New)</>
+                  )}
+                  {activeTab === 'INVITATIONS' && (
+                    <>Team Invitations
+                    {pendingInvitationsCount > 0 && (
+                      <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        {pendingInvitationsCount}
+                      </span>
+                    )}</>
+                  )}
+                  {activeTab === 'WALLET' && (
+                    <>Wallet</>
+                  )}
+                  {activeTab === 'RESOLVED' && (
+                    <>Resolved Cases</>
+                  )}
+                  {activeTab === 'DISPUTED' && (
+                    <>Disputes
+                    {myCases.filter(c => c.status === 'DISPUTED').length > 0 && (
+                      <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        {myCases.filter(c => c.status === 'DISPUTED').length}
+                      </span>
+                    )}</>
+                  )}
+                </div>
+                <ChevronDown className={`w-5 h-5 transition-transform ${
+                  showMobileMenu ? 'rotate-180' : ''
+                }`} />
+              </button>
+
+              {showMobileMenu && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-mystery-800 border border-mystery-700 rounded-lg shadow-xl z-50">
+                  <button
+                    onClick={() => { setActiveTab('MY_CASES'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                      activeTab === 'MY_CASES' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    Assigned Cases
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('AVAILABLE'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                      activeTab === 'AVAILABLE' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    Case Board (New)
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('INVITATIONS'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-mystery-700 transition-colors ${
+                      activeTab === 'INVITATIONS' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    <span>Team Invitations</span>
+                    {pendingInvitationsCount > 0 && (
+                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        {pendingInvitationsCount}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('WALLET'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                      activeTab === 'WALLET' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    Wallet
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('RESOLVED'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                      activeTab === 'RESOLVED' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    Resolved Cases
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('DISPUTED'); setShowMobileMenu(false); }}
+                    className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-mystery-700 transition-colors rounded-b-lg ${
+                      activeTab === 'DISPUTED' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                    }`}
+                  >
+                    <span>Disputes</span>
+                    {myCases.filter(c => c.status === 'DISPUTED').length > 0 && (
+                      <span className="px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                        {myCases.filter(c => c.status === 'DISPUTED').length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {activeTab === 'INVITATIONS' && (

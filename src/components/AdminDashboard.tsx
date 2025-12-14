@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign } from 'lucide-react';
+import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Case } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -32,6 +32,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions'>('overview');
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [stats, setStats] = useState({
   totalCases: 0,
   activeUsers: 0,
@@ -671,7 +672,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       <h1 className="text-3xl font-bold text-white mb-8">System Administration</h1>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 mb-8 border-b border-mystery-700">
+      {/* Desktop Navigation */}
+      <div className="hidden md:flex gap-2 mb-8 border-b border-mystery-700">
         <button
           onClick={() => setActiveTab('overview')}
           className={`px-6 py-3 font-medium transition-colors ${
@@ -760,6 +762,119 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             Subscriptions & Groups
           </div>
         </button>
+      </div>
+
+      {/* Mobile Navigation */}
+      <div className="md:hidden mb-8">
+        <div className="relative">
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="w-full bg-mystery-800 border border-mystery-700 rounded-lg px-4 py-3 flex items-center justify-between text-white"
+          >
+            <div className="flex items-center gap-2">
+              {activeTab === 'overview' && (
+                <><Shield className="w-5 h-5" />Overview</>
+              )}
+              {activeTab === 'analytics' && (
+                <><BarChart3 className="w-5 h-5" />Analytics & SEO</>
+              )}
+              {activeTab === 'content' && (
+                <><Newspaper className="w-5 h-5" />Content Management</>
+              )}
+              {activeTab === 'investigators' && (
+                <><Shield className="w-5 h-5" />Applications
+                {investigatorApplications.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {investigatorApplications.length}
+                  </span>
+                )}</>
+              )}
+              {activeTab === 'verifications' && (
+                <><Shield className="w-5 h-5" />Verifications
+                {backgroundChecks.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black text-xs font-bold rounded-full">
+                    {backgroundChecks.length}
+                  </span>
+                )}</>
+              )}
+              {activeTab === 'subscriptions' && (
+                <><Users className="w-5 h-5" />Subscriptions & Groups</>
+              )}
+            </div>
+            <ChevronDown className={`w-5 h-5 transition-transform ${
+              showMobileMenu ? 'rotate-180' : ''
+            }`} />
+          </button>
+
+          {showMobileMenu && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-mystery-800 border border-mystery-700 rounded-lg shadow-xl z-50">
+              <button
+                onClick={() => { setActiveTab('overview'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                  activeTab === 'overview' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                Overview
+              </button>
+              <button
+                onClick={() => { setActiveTab('analytics'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                  activeTab === 'analytics' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5" />
+                Analytics & SEO
+              </button>
+              <button
+                onClick={() => { setActiveTab('content'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                  activeTab === 'content' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <Newspaper className="w-5 h-5" />
+                Content Management
+              </button>
+              <button
+                onClick={() => { setActiveTab('investigators'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                  activeTab === 'investigators' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                Applications
+                {investigatorApplications.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {investigatorApplications.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => { setActiveTab('verifications'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                  activeTab === 'verifications' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                Verifications
+                {backgroundChecks.length > 0 && (
+                  <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black text-xs font-bold rounded-full">
+                    {backgroundChecks.length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => { setActiveTab('subscriptions'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors rounded-b-lg ${
+                  activeTab === 'subscriptions' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                Subscriptions & Groups
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
