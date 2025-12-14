@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Case, User } from '../types';
-import { Upload, Camera, MapPin, Calendar, FileText, DollarSign, Sparkles, RefreshCw, Check, Map as MapIcon, X, Clock } from 'lucide-react';
+import { Upload, Camera, MapPin, Calendar, FileText, DollarSign, Sparkles, RefreshCw, Check, Map as MapIcon, X, Clock, FileSearch } from 'lucide-react';
 import { CaseMap } from './CaseMap';
 import { caseService } from '../services/caseService';
+import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 
 interface SubmitCaseFormProps {
@@ -34,6 +35,49 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   const [autoTranslate, setAutoTranslate] = useState(true);
   const [translating, setTranslating] = useState(false);
   const [translatedPrompt, setTranslatedPrompt] = useState<string>('');
+  
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [showTemplateGuide, setShowTemplateGuide] = useState(false);
+  
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+  
+  const loadTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('case_templates')
+        .select('*')
+        .eq('is_public', true)
+        .order('usage_count', { ascending: false });
+      
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (error) {
+      console.error('Error loading templates:', error);
+    }
+  };
+  
+  const handleTemplateSelect = (templateId: string) => {
+    if (!templateId) {
+      setSelectedTemplate('');
+      setShowTemplateGuide(false);
+      return;
+    }
+    
+    const template = templates.find(t => t.id === templateId);
+    if (!template) return;
+    
+    setSelectedTemplate(templateId);
+    setShowTemplateGuide(true);
+    
+    // Pre-fill category
+    setFormData(prev => ({
+      ...prev,
+      category: template.category
+    }));
+  };
 
   // Translate text to English using Gemini AI
   const translateToEnglish = async (text: string): Promise<string> => {

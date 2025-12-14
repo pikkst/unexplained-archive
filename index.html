@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Unexplained Archive</title>
     
     <!-- GitHub Pages SPA redirect recovery -->
@@ -63,6 +63,21 @@
       }
       ::-webkit-scrollbar-thumb:hover {
         background: #475569;
+      }
+      
+      /* Prevent mobile zoom on input focus - iOS Safari */
+      input[type="text"],
+      input[type="number"],
+      input[type="email"],
+      input[type="password"],
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+      
+      /* Prevent double-tap zoom on mobile */
+      * {
+        touch-action: manipulation;
       }
       
       /* Leaflet Custom Overrides */

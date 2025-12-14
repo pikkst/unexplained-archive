@@ -156,10 +156,14 @@ export const DepositModal: React.FC<DepositModalProps> = ({
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">€</span>
               <input
-                type="number" min="5" max="10000" step="1"
+                type="number" 
+                inputMode="decimal"
+                min="5" 
+                max="10000" 
+                step="1"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full pl-8 pr-4 py-3 bg-mystery-900 border border-mystery-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-mystery-500"
+                className="w-full pl-8 pr-4 py-3 bg-mystery-900 border border-mystery-700 rounded-lg text-white text-base focus:outline-none focus:ring-2 focus:ring-mystery-500"
                 placeholder="Custom amount"
               />
             </div>
