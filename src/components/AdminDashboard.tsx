@@ -159,7 +159,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         
         clearTimeout(timeoutId);
 
-        if (gaResponse.data?.success && gaResponse.data.data) {
+        // Check if GA API returned meaningful data (not just zeros)
+        const hasGAData = gaResponse.data?.success && 
+                         gaResponse.data.data && 
+                         (gaResponse.data.data.pageViews > 0 || gaResponse.data.data.uniqueVisitors > 0);
+
+        if (hasGAData) {
           console.log('✅ Using Google Analytics API data');
           setAnalyticsData({
             pageViews: gaResponse.data.data.pageViews,
@@ -177,6 +182,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           return; // Success, exit early
         }
         
+        console.log('⚠️ GA API returned no data, using Supabase fallback');
         if (gaResponse.error) {
           console.warn('Google Analytics API not available:', gaResponse.error);
         }
