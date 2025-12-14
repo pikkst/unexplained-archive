@@ -1473,24 +1473,126 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                 </div>
               </div>
 
-              {/* Top Countries */}
+              {/* Geographic Heatmap */}
               <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
                 <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                   <Globe className="w-5 h-5 text-mystery-400" />
-                  Top Countries
+                  Geographic Distribution Heatmap
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {analyticsData.topCountries.map((country, idx) => (
-                    <div key={idx} className="p-4 bg-mystery-900/50 rounded text-center">
-                      <p className="text-2xl mb-2">🌍</p>
-                      <p className="text-sm text-gray-300 mb-1">{country.country}</p>
-                      <p className="text-lg font-bold text-mystery-400">{country.visits}</p>
+                
+                {analyticsData.topCountries.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No geographic data available</p>
+                ) : (
+                  <div>
+                    {/* Heatmap visualization */}
+                    <div className="mb-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* Top 10 Countries Bar Chart */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-300 mb-3">Top 10 Countries by Visits</h4>
+                          <div className="space-y-2">
+                            {analyticsData.topCountries.slice(0, 10).map((country, idx) => {
+                              const maxVisits = Math.max(...analyticsData.topCountries.map(c => c.visits));
+                              const percentage = (country.visits / maxVisits) * 100;
+                              
+                              return (
+                                <div key={idx} className="group">
+                                  <div className="flex items-center justify-between text-sm mb-1">
+                                    <span className="text-gray-300 font-medium flex items-center gap-2">
+                                      <span className={`inline-block w-6 h-4 rounded ${
+                                        idx === 0 ? 'bg-green-500' :
+                                        idx === 1 ? 'bg-blue-500' :
+                                        idx === 2 ? 'bg-purple-500' :
+                                        'bg-mystery-500'
+                                      }`}></span>
+                                      {country.country}
+                                    </span>
+                                    <span className="text-mystery-400 font-bold">{country.visits}</span>
+                                  </div>
+                                  <div className="w-full h-6 bg-mystery-900 rounded-full overflow-hidden">
+                                    <div 
+                                      className={`h-full transition-all duration-500 ${
+                                        idx === 0 ? 'bg-gradient-to-r from-green-500 to-green-400' :
+                                        idx === 1 ? 'bg-gradient-to-r from-blue-500 to-blue-400' :
+                                        idx === 2 ? 'bg-gradient-to-r from-purple-500 to-purple-400' :
+                                        'bg-gradient-to-r from-mystery-500 to-mystery-400'
+                                      } flex items-center justify-end pr-2`}
+                                      style={{ width: `${percentage}%` }}
+                                    >
+                                      <span className="text-xs text-white font-semibold">
+                                        {Math.round(percentage)}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        
+                        {/* Regional Distribution Pie */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-300 mb-3">Regional Distribution</h4>
+                          <div className="space-y-3">
+                            {(() => {
+                              const regions = {
+                                'North America': ['US', 'USA', 'United States', 'Canada', 'Mexico'],
+                                'Europe': ['UK', 'Germany', 'France', 'Spain', 'Italy', 'Netherlands', 'Poland', 'Sweden'],
+                                'Asia': ['China', 'Japan', 'India', 'South Korea', 'Singapore', 'Thailand'],
+                                'South America': ['Brazil', 'Argentina', 'Chile', 'Colombia'],
+                                'Oceania': ['Australia', 'New Zealand'],
+                                'Africa': ['South Africa', 'Nigeria', 'Egypt', 'Kenya']
+                              };
+                              
+                              const regionalData = Object.entries(regions).map(([region, countries]) => {
+                                const visits = analyticsData.topCountries
+                                  .filter(c => countries.some(country => c.country.includes(country)))
+                                  .reduce((sum, c) => sum + c.visits, 0);
+                                return { region, visits };
+                              }).filter(r => r.visits > 0);
+                              
+                              const totalVisits = regionalData.reduce((sum, r) => sum + r.visits, 0);
+                              
+                              return regionalData.map((data, idx) => {
+                                const percentage = (data.visits / totalVisits) * 100;
+                                return (
+                                  <div key={idx} className="flex items-center gap-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center justify-between text-sm mb-1">
+                                        <span className="text-gray-300">{data.region}</span>
+                                        <span className="text-mystery-400 font-semibold">{Math.round(percentage)}%</span>
+                                      </div>
+                                      <div className="w-full h-4 bg-mystery-900 rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-gradient-to-r from-mystery-500 to-mystery-400"
+                                          style={{ width: `${percentage}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                  {analyticsData.topCountries.length === 0 && (
-                    <p className="text-gray-500 text-center py-4 col-span-full">No data available</p>
-                  )}
-                </div>
+                    
+                    {/* Country Grid */}
+                    <div className="border-t border-mystery-700 pt-4 mt-4">
+                      <h4 className="text-sm font-semibold text-gray-300 mb-3">All Countries</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                        {analyticsData.topCountries.map((country, idx) => (
+                          <div key={idx} className="p-3 bg-mystery-900/50 rounded-lg text-center hover:bg-mystery-900 transition-colors">
+                            <p className="text-xl mb-1">🌍</p>
+                            <p className="text-xs text-gray-300 mb-1 truncate">{country.country}</p>
+                            <p className="text-sm font-bold text-mystery-400">{country.visits}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* SEO Rankings Management */}
