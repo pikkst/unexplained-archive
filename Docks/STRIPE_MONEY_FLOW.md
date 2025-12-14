@@ -1,13 +1,13 @@
-# 💳 STRIPE RAHAVOOD - Unexplained Archive
+# 💳 STRIPE PAYMENT FLOWS - Unexplained Archive
 
-## 📊 ÜLEVAADE
+## 📊 OVERVIEW
 
-Platvormi maksesüsteem toetab **4 erinevat rahavoogu**:
+The platform payment system supports **4 different payment flows**:
 
-### 1️⃣ **Wallet Deposit** (Kasutaja laeb raha oma rahakotti)
-### 2️⃣ **Case Donation** (Stripe → Case Escrow) - **10% TEENUSTASU**
-### 3️⃣ **Platform Donation via Stripe** (Pank → Platform) - **0% TEENUSTASU**
-### 4️⃣ **Platform/Case Donation via Wallet** (Wallet Balance → Target) - **0% TEENUSTASU**
+### 1️⃣ **Wallet Deposit** (User loads money into their wallet)
+### 2️⃣ **Case Donation** (Stripe → Case Escrow) - **10% SERVICE FEE**
+### 3️⃣ **Platform Donation via Stripe** (Bank → Platform) - **0% SERVICE FEE**
+### 4️⃣ **Platform/Case Donation via Wallet** (Wallet Balance → Target) - **0% SERVICE FEE**
 
 ---
 
@@ -15,16 +15,15 @@ Platvormi maksesüsteem toetab **4 erinevat rahavoogu**:
 
 ```
 ┌─────────────┐
-│   KASUTAJA  │ Tahab lisada €100 oma rahakotti
+│    USER     │ Wants to add €100 to their wallet
 └──────┬──────┘
        │
-       │ 1. Klikkab "Deposit Funds"
+       │ 1. Clicks "Deposit Funds"
        ▼
 ┌─────────────────────────────────┐
-│  create-donation-checkout Edge  │
+│  create-deposit-checkout Edge   │
 │  Function                        │
 │                                  │
-│  caseId: 'wallet_deposit'       │
 │  amount: 100                     │
 │  userId: xxx                     │
 └─────────┬───────────────────────┘

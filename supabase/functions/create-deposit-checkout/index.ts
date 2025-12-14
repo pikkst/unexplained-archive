@@ -99,14 +99,16 @@ Deno.serve(async (req) => {
         metadata: {
           type: 'wallet_deposit',
           userId: userId,
-          amount: amount,
+          amount: amount.toString(),
         },
       },
       metadata: {
         type: 'wallet_deposit',
         userId: userId,
-        amount: amount,
+        amount: amount.toString(),
       },
+    }, {
+      stripeAccount: STRIPE_OPERATIONS_ACCOUNT_ID, // Use connected account
     });
 
     return new Response(JSON.stringify({ sessionId: session.id, checkoutUrl: session.url }), {
