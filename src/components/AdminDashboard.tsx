@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Case } from '../types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import { MassNotificationPanel } from './MassNotificationPanel';
 import { SubscriptionGroupNotifications } from './SubscriptionGroupNotifications';
 
@@ -54,6 +54,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     trafficSources: [] as { source: string; visits: number }[],
     topCountries: [] as { country: string; visits: number }[]
   });
+  const [categoryTrends, setCategoryTrends] = useState<any[]>([]);
   const [seoRankings, setSeoRankings] = useState<any[]>([]);
   const [newSeoRanking, setNewSeoRanking] = useState({ keyword: '', page_url: '', search_engine: 'google', ranking_position: 1, country: 'US' });
   const [editingSeoId, setEditingSeoId] = useState<string | null>(null);
@@ -334,8 +335,65 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           topCountries
         });
       }
+      
+      // Load category trends data
+      await loadCategoryTrends();
     } catch (error) {
       console.error('Failed to load analytics:', error);
+    }
+  };
+  
+  const loadCategoryTrends = async () => {
+    try {
+      // Get case counts by category for last 6 months
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      
+      const { data: cases } = await supabase
+        .from('cases')
+        .select('category, created_at')
+        .gte('created_at', sixMonthsAgo.toISOString())
+        .order('created_at', { ascending: true });
+      
+      if (cases) {
+        // Group by month and category
+        const monthlyData: Record<string, Record<string, number>> = {};
+        
+        cases.forEach((c: any) => {
+          const date = new Date(c.created_at);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = {};
+          }
+          
+          const category = c.category || 'Unknown';
+          monthlyData[monthKey][category] = (monthlyData[monthKey][category] || 0) + 1;
+        });
+        
+        // Convert to chart format
+        const trends = Object.entries(monthlyData)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([month, categories]) => {
+            // Format month for display
+            const [year, monthNum] = month.split('-');
+            const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('en', { month: 'short', year: 'numeric' });
+            
+            return {
+              month: monthName,
+              UFO: categories['UFO'] || 0,
+              Cryptid: categories['Cryptid'] || 0,
+              Paranormal: categories['Paranormal'] || 0,
+              Supernatural: categories['Supernatural'] || 0,
+              'Mystery Location': categories['Mystery Location'] || 0,
+              Other: categories['Other'] || 0
+            };
+          });
+        
+        setCategoryTrends(trends);
+      }
+    } catch (error) {
+      console.error('Failed to load category trends:', error);
     }
   };
 
@@ -1590,6 +1648,112 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Case Category Trends Chart */}
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 mb-8">
+                <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-mystery-400" />
+                  Case Category Trends (Last 6 Months)
+                </h3>
+                
+                {categoryTrends.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No trend data available</p>
+                ) : (
+                  <div>
+                    <div className="bg-mystery-900/30 rounded-lg p-4 mb-4">
+                      <p className="text-sm text-gray-300">
+                        Track which mystery categories are gaining popularity over time. Use this data to optimize content strategy and resource allocation.
+                      </p>
+                    </div>
+                    
+                    <ResponsiveContainer width="100%" height={400}>
+                      <LineChart data={categoryTrends}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis 
+                          dataKey="month" 
+                          stroke="#9ca3af"
+                          style={{ fontSize: '12px' }}
+                        />
+                        <YAxis 
+                          stroke="#9ca3af"
+                          style={{ fontSize: '12px' }}
+                          label={{ value: 'Cases Submitted', angle: -90, position: 'insideLeft', style: { fill: '#9ca3af' } }}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: '#1f2937', 
+                            border: '1px solid #374151',
+                            borderRadius: '8px',
+                            color: '#fff'
+                          }}
+                        />
+                        <Legend 
+                          wrapperStyle={{ paddingTop: '20px' }}
+                          iconType="line"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="UFO" 
+                          stroke="#6366f1" 
+                          strokeWidth={2}
+                          dot={{ fill: '#6366f1', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="Cryptid" 
+                          stroke="#16a34a" 
+                          strokeWidth={2}
+                          dot={{ fill: '#16a34a', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="Paranormal" 
+                          stroke="#9333ea" 
+                          strokeWidth={2}
+                          dot={{ fill: '#9333ea', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="Supernatural" 
+                          stroke="#dc2626" 
+                          strokeWidth={2}
+                          dot={{ fill: '#dc2626', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="Mystery Location" 
+                          stroke="#f59e0b" 
+                          strokeWidth={2}
+                          dot={{ fill: '#f59e0b', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    
+                    {/* Summary Stats */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+                      {categoryTrends.length > 0 && (() => {
+                        const latest = categoryTrends[categoryTrends.length - 1];
+                        const categories = ['UFO', 'Cryptid', 'Paranormal', 'Supernatural', 'Mystery Location'];
+                        const colors = ['#6366f1', '#16a34a', '#9333ea', '#dc2626', '#f59e0b'];
+                        
+                        return categories.map((cat, idx) => (
+                          <div key={cat} className="bg-mystery-900/50 rounded-lg p-3 text-center">
+                            <div className="w-3 h-3 rounded-full mx-auto mb-2" style={{ backgroundColor: colors[idx] }}></div>
+                            <p className="text-xs text-gray-400 mb-1">{cat}</p>
+                            <p className="text-lg font-bold text-white">{latest[cat] || 0}</p>
+                            <p className="text-xs text-gray-500">this month</p>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
                 )}
