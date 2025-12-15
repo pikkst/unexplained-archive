@@ -617,12 +617,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         setTimeout(() => reject(new Error('Forum posts load timeout')), 10000)
       );
       
+      // Query without 'content' field - use only fields that exist
       const dataPromise = supabase
         .from('forum_threads')
         .select(`
           id,
           title,
-          content,
           created_at,
           views,
           reply_count,
@@ -2154,8 +2154,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                       <div key={post.id} className="p-4 bg-mystery-900/50 rounded-lg border border-mystery-700">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-white mb-1">{post.title}</h4>
-                            <p className="text-sm text-gray-400 mb-3 line-clamp-3">{post.content}</p>
+                            <h4 className="font-semibold text-white mb-2">{post.title}</h4>
                             <div className="flex items-center gap-4 text-xs text-gray-500">
                               <span className="flex items-center gap-1">
                                 <Users className="w-3 h-3" />
@@ -2202,6 +2201,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Article Management Info */}
+              <div className="mb-6 bg-blue-900/30 border border-blue-700 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <Newspaper className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-blue-300 font-medium mb-1">📝 Article Management</p>
+                    <p className="text-blue-200/80 text-sm">
+                      Create and manage blog articles that will appear on your landing page. Articles help with SEO and engage your audience.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* New Article Form */}
