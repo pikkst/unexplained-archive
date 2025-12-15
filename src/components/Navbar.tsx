@@ -229,11 +229,11 @@ export const Navbar: React.FC = () => {
 
                   {/* User Menu */}
                   <div className="relative group">
-                    <button className="flex items-center gap-2 bg-mystery-800 hover:bg-mystery-700 px-3 py-2 rounded-lg transition-colors">
+                    <button className="flex items-center gap-2 sm:gap-2 bg-mystery-800 hover:bg-mystery-700 px-2 sm:px-3 py-2 rounded-lg transition-colors min-w-[44px] justify-center sm:justify-start">
                       {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                        <img src={profile.avatar_url} alt="" className="w-8 h-8 sm:w-6 sm:h-6 rounded-full flex-shrink-0" />
                       ) : (
-                        <UserIcon className="w-5 h-5 text-gray-400" />
+                        <UserIcon className="w-6 h-6 sm:w-5 sm:h-5 text-gray-400" />
                       )}
                       <span className="text-sm font-medium text-white hidden sm:inline">
                         {profile?.username || 'User'}
