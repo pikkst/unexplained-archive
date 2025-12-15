@@ -40,6 +40,7 @@ export const Inbox: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'messages' | 'sent' | 'notifications'>('notifications');
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [replyToUser, setReplyToUser] = useState<{ id: string; username: string } | null>(null);
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -205,6 +206,7 @@ export const Inbox: React.FC = () => {
   const handleSelectMessage = async (message: MessageWithDetails) => {
     setSelectedMessage(message);
     setSelectedNotification(null);
+    setShowMobileDetail(true);
     
     // Mark as read when opened
     if (!message.read_at && user) {
@@ -215,6 +217,7 @@ export const Inbox: React.FC = () => {
   const handleSelectNotification = async (notification: Notification) => {
     setSelectedNotification(notification);
     setSelectedMessage(null);
+    setShowMobileDetail(true);
     
     // Mark as read
     if (!notification.read_at && user) {
@@ -247,15 +250,15 @@ export const Inbox: React.FC = () => {
     <div className="min-h-screen bg-mystery-900 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="bg-mystery-800 rounded-lg border border-mystery-700 p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="bg-mystery-700 p-3 rounded-lg">
-                <Mail className="w-8 h-8 text-mystery-400" />
+        <div className="bg-mystery-800 rounded-lg border border-mystery-700 p-4 sm:p-6 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="bg-mystery-700 p-2 sm:p-3 rounded-lg">
+                <Mail className="w-6 h-6 sm:w-8 sm:h-8 text-mystery-400" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white">Inbox</h1>
-                <p className="text-gray-400 mt-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">Inbox</h1>
+                <p className="text-sm sm:text-base text-gray-400 mt-1">
                   {unreadNotificationsCount > 0 || unreadMessagesCount > 0 ? (
                     <span className="text-green-400 font-semibold">
                       {unreadNotificationsCount + unreadMessagesCount} unread
@@ -271,7 +274,7 @@ export const Inbox: React.FC = () => {
                 loadAllMessages();
                 loadAllNotifications();
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg transition-colors text-sm sm:text-base w-full sm:w-auto justify-center"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
@@ -280,10 +283,10 @@ export const Inbox: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 flex gap-2 bg-mystery-800 rounded-lg border border-mystery-700 p-1">
+        <div className="mb-6 flex flex-col sm:flex-row gap-2 bg-mystery-800 rounded-lg border border-mystery-700 p-1">
           <button
             onClick={() => setActiveTab('notifications')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
               activeTab === 'notifications'
                 ? 'bg-mystery-600 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -299,7 +302,7 @@ export const Inbox: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('messages')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
               activeTab === 'messages'
                 ? 'bg-mystery-600 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -315,7 +318,7 @@ export const Inbox: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('sent')}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg transition-colors ${
+            className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-3 rounded-lg transition-colors text-sm sm:text-base ${
               activeTab === 'sent'
                 ? 'bg-mystery-600 text-white'
                 : 'text-gray-400 hover:text-white'
@@ -328,8 +331,8 @@ export const Inbox: React.FC = () => {
 
         {/* Content Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* List (Notifications or Messages) */}
-          <div className="lg:col-span-1">
+          {/* List (Notifications or Messages) - Hide on mobile when detail is shown */}
+          <div className={`lg:col-span-1 ${showMobileDetail ? 'hidden lg:block' : 'block'}`}>
             <div className="bg-mystery-800 rounded-lg border border-mystery-700 overflow-hidden">
               <div className="p-4 border-b border-mystery-700 flex justify-between items-center">
                 <h2 className="font-bold text-white">
@@ -581,30 +584,43 @@ export const Inbox: React.FC = () => {
             </div>
           </div>
 
-          {/* Detail View (Notification or Message) */}
-          <div className="lg:col-span-2">
+          {/* Detail View (Notification or Message) - Show on mobile when detail is selected */}
+          <div className={`lg:col-span-2 ${!showMobileDetail && !selectedMessage && !selectedNotification ? 'hidden lg:block' : 'block'}`}>
+            {/* Back button for mobile */}
+            {showMobileDetail && (selectedMessage || selectedNotification) && (
+              <button
+                onClick={() => setShowMobileDetail(false)}
+                className="lg:hidden mb-4 flex items-center gap-2 px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to list
+              </button>
+            )}
+            
             {selectedNotification ? (
               // Notification Detail
               <div className="bg-mystery-800 rounded-lg border border-mystery-700 overflow-hidden">
-                <div className="p-6 border-b border-mystery-700">
+                <div className="p-4 sm:p-6 border-b border-mystery-700">
                   <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="w-12 h-12 bg-mystery-600 rounded-full flex items-center justify-center">
-                        <Bell className="w-6 h-6 text-mystery-400" />
+                    <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-mystery-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-mystery-400" />
                       </div>
                       
-                      <div className="flex-1">
-                        <h2 className="text-xl font-bold text-white mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-lg sm:text-xl font-bold text-white mb-2 break-words">
                           {selectedNotification.title}
                         </h2>
-                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
                           <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {new Date(selectedNotification.created_at).toLocaleString('en-US')}
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="truncate">{new Date(selectedNotification.created_at).toLocaleString('en-US')}</span>
                           </div>
                           {selectedNotification.read_at && (
                             <div className="flex items-center gap-1">
-                              <Eye className="w-4 h-4" />
+                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                               Read
                             </div>
                           )}
@@ -614,17 +630,17 @@ export const Inbox: React.FC = () => {
                     
                     <button
                       onClick={() => handleDeleteNotification(selectedNotification.id)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-mystery-700 rounded-lg transition-colors"
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-mystery-700 rounded-lg transition-colors flex-shrink-0"
                       title="Delete notification"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 </div>
 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <div className="prose prose-invert max-w-none">
-                    <p className="text-gray-300 whitespace-pre-wrap">
+                    <p className="text-sm sm:text-base text-gray-300 whitespace-pre-wrap break-words">
                       {selectedNotification.message}
                     </p>
                   </div>
@@ -634,20 +650,20 @@ export const Inbox: React.FC = () => {
               // Message Detail
               <div className="bg-mystery-800 rounded-lg border border-mystery-700 overflow-hidden">
                 {/* Message Header */}
-                <div className="p-6 border-b border-mystery-700">
+                <div className="p-4 sm:p-6 border-b border-mystery-700">
                   <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex items-start gap-4 flex-1">
+                    <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
                       {activeTab === 'sent' ? (
                         // Sent message - show recipient
                         selectedMessage.recipient?.avatar_url ? (
                           <img 
                             src={selectedMessage.recipient.avatar_url} 
                             alt="" 
-                            className="w-12 h-12 rounded-full"
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-mystery-600 rounded-full flex items-center justify-center">
-                            <MessageSquare className="w-6 h-6 text-gray-400" />
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-mystery-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
                           </div>
                         )
                       ) : (
@@ -656,45 +672,46 @@ export const Inbox: React.FC = () => {
                           <img 
                             src={selectedMessage.sender.avatar_url} 
                             alt="" 
-                            className="w-12 h-12 rounded-full"
+                            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0"
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-mystery-600 rounded-full flex items-center justify-center">
-                            <MessageSquare className="w-6 h-6 text-gray-400" />
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-mystery-600 rounded-full flex items-center justify-center flex-shrink-0">
+                            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
                           </div>
                         )
                       )}
                       
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         {activeTab === 'sent' ? (
                           <h2 
-                            className="text-xl font-bold text-white mb-1 hover:text-blue-400 cursor-pointer transition-colors inline-block"
+                            className="text-lg sm:text-xl font-bold text-white mb-1 hover:text-blue-400 cursor-pointer transition-colors truncate"
                             onClick={() => navigate(`/profile/${selectedMessage.recipient?.username}`)}
                           >
                             To: {selectedMessage.recipient?.username || 'Unknown'}
                           </h2>
                         ) : (
                           <h2 
-                            className="text-xl font-bold text-white mb-1 hover:text-blue-400 cursor-pointer transition-colors inline-block"
+                            className="text-lg sm:text-xl font-bold text-white mb-1 hover:text-blue-400 cursor-pointer transition-colors truncate"
                             onClick={() => navigate(`/profile/${selectedMessage.sender?.username}`)}
                           >
                             {selectedMessage.sender?.username || 'Unknown'}
                           </h2>
                         )}
                         {selectedMessage.case && (
-                          <p className="text-mystery-400 mb-2">
+                          <p className="text-xs sm:text-sm text-mystery-400 mb-2 truncate">
                             Case: <span className="text-white">{selectedMessage.case.title}</span>
                           </p>
                         )}
-                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
                           <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {new Date(selectedMessage.created_at).toLocaleString('en-US')}
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="truncate">{new Date(selectedMessage.created_at).toLocaleString('en-US')}</span>
                           </div>
                           {selectedMessage.read_at && (
                             <div className="flex items-center gap-1">
-                              <Eye className="w-4 h-4" />
-                              Read: {new Date(selectedMessage.read_at).toLocaleString('en-US')}
+                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span className="hidden sm:inline">Read: </span>
+                              <span className="truncate">{new Date(selectedMessage.read_at).toLocaleString('en-US')}</span>
                             </div>
                           )}
                         </div>
@@ -703,28 +720,28 @@ export const Inbox: React.FC = () => {
                     
                     <button
                       onClick={() => handleDeleteMessage(selectedMessage.id)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-mystery-700 rounded-lg transition-colors"
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-mystery-700 rounded-lg transition-colors flex-shrink-0"
                       title="Delete message"
                     >
-                      <Trash2 className="w-5 h-5" />
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
                 </div>
 
                 {/* Message Content */}
-                <div className="p-6">
-                  <div className="bg-mystery-900 rounded-lg p-6 border border-mystery-700">
-                    <p className="text-gray-300 whitespace-pre-wrap leading-relaxed">
+                <div className="p-4 sm:p-6">
+                  <div className="bg-mystery-900 rounded-lg p-4 sm:p-6 border border-mystery-700">
+                    <p className="text-sm sm:text-base text-gray-300 whitespace-pre-wrap leading-relaxed break-words">
                       {selectedMessage.content}
                     </p>
                   </div>
                   
                   {/* Action Buttons */}
-                  <div className="flex gap-3 mt-6">
+                  <div className="flex flex-col sm:flex-row gap-3 mt-4 sm:mt-6">
                     {activeTab !== 'sent' && !selectedMessage.read_at && (
                       <button
                         onClick={() => handleMarkAsRead(selectedMessage.id)}
-                        className="flex items-center gap-2 px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg transition-colors"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg transition-colors text-sm sm:text-base"
                       >
                         <Eye className="w-4 h-4" />
                         Mark as Read
@@ -741,7 +758,7 @@ export const Inbox: React.FC = () => {
                             setShowReplyModal(true);
                           }
                         }}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm sm:text-base"
                       >
                         <Reply className="w-4 h-4" />
                         Reply
