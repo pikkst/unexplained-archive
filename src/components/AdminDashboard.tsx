@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign, ChevronDown } from 'lucide-react';
+import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Case } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
@@ -611,7 +611,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const loadForumPosts = async () => {
     try {
       setLoadingPosts(true);
-      const { data, error } = await supabase
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Forum posts load timeout')), 10000)
+      );
+      
+      const dataPromise = supabase
         .from('forum_threads')
         .select(`
           id,
@@ -630,10 +636,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         .order('created_at', { ascending: false })
         .limit(50);
       
-      if (error) throw error;
+      const { data, error } = await Promise.race([dataPromise, timeoutPromise]) as any;
+      
+      if (error) {
+        console.error('Forum posts query error:', error);
+        throw error;
+      }
+      
       setForumPosts(data || []);
     } catch (error) {
       console.error('Failed to load forum posts:', error);
+      // Set empty array on error so UI doesn't hang
+      setForumPosts([]);
     } finally {
       setLoadingPosts(false);
     }
@@ -2130,7 +2144,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                     <p className="text-gray-500">Loading forum posts...</p>
                   </div>
                 ) : forumPosts.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No forum posts to moderate</p>
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500">No forum posts to moderate</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {forumPosts.map((post) => (
