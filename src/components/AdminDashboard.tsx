@@ -617,16 +617,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         setTimeout(() => reject(new Error('Forum posts load timeout')), 10000)
       );
       
-      // Query without 'content' field - use only fields that exist
+      // Query only basic fields that definitely exist
       const dataPromise = supabase
         .from('forum_threads')
         .select(`
           id,
           title,
           created_at,
-          views,
-          reply_count,
           category,
+          user_id,
           profiles:user_id (
             id,
             username,
@@ -2160,11 +2159,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                                 <Users className="w-3 h-3" />
                                 {post.profiles?.username || 'Unknown User'}
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Eye className="w-3 h-3" />
-                                {post.views || 0} views
-                              </span>
-                              <span>{post.reply_count || 0} replies</span>
                               <span className="px-2 py-0.5 bg-mystery-700 rounded">
                                 {post.category || 'General'}
                               </span>
