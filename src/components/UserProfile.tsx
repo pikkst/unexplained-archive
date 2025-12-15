@@ -522,7 +522,7 @@ export const UserProfile: React.FC = () => {
               style={primaryColor ? { ringColor: primaryColor } : { ringColor: '#3b82f6' }}
             >
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover" />
+                <img src={profile.avatar_url} alt={profile.username} className="w-full h-full object-cover rounded-full" />
               ) : (
                 <User className="w-12 h-12 text-gray-500" />
               )}
@@ -1190,7 +1190,7 @@ export const UserProfile: React.FC = () => {
                         <div className="flex-shrink-0">
                           <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
                             {activity.data.profiles?.avatar_url ? (
-                              <img src={activity.data.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                              <img src={activity.data.profiles.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                             ) : (
                               <User className="w-5 h-5 text-gray-500" />
                             )}
@@ -1225,7 +1225,7 @@ export const UserProfile: React.FC = () => {
                         <div className="flex-shrink-0">
                           <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
                             {activity.data.profiles?.avatar_url ? (
-                              <img src={activity.data.profiles.avatar_url} alt="" className="w-full h-full object-cover" />
+                              <img src={activity.data.profiles.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                             ) : (
                               <User className="w-5 h-5 text-gray-500" />
                             )}

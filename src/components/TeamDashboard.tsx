@@ -402,7 +402,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                   >
                     <div className="w-8 h-8 rounded-full bg-mystery-700 flex-shrink-0 overflow-hidden">
                       {msg.sender?.avatar_url ? (
-                        <img src={msg.sender.avatar_url} alt="" className="w-full h-full object-cover" />
+                        <img src={msg.sender.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-mystery-accent text-xs font-bold">
                           {msg.sender?.username?.[0]?.toUpperCase()}
@@ -479,7 +479,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-full bg-mystery-700 overflow-hidden">
                         {member.avatar_url ? (
-                          <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img src={member.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-mystery-accent font-bold">
                             {member.username[0].toUpperCase()}
@@ -761,7 +761,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full bg-mystery-700 overflow-hidden flex-shrink-0">
                           {inv.avatar_url ? (
-                            <img src={inv.avatar_url} alt="" className="w-full h-full object-cover" />
+                            <img src={inv.avatar_url} alt="" className="w-full h-full object-cover rounded-full" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-mystery-accent text-xs font-bold">
                               {inv.username[0].toUpperCase()}

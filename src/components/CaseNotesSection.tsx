@@ -224,7 +224,7 @@ export const CaseNotesSection: React.FC<CaseNotesSectionProps> = ({ caseId, user
                       <img
                         src={note.author.avatar_url}
                         alt={note.author.username}
-                        className="w-8 h-8 rounded-full"
+                        className="w-8 h-8 rounded-full object-cover"
                       />
                     ) : (
                       <div className="w-8 h-8 bg-mystery-700 rounded-full flex items-center justify-center">

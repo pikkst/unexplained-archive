@@ -242,7 +242,7 @@ export const CaseComments: React.FC<CaseCommentsProps> = ({ caseId }) => {
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {comment.profiles.avatar_url ? (
-                    <img src={comment.profiles.avatar_url} alt={comment.profiles.username} className="w-full h-full object-cover" />
+                    <img src={comment.profiles.avatar_url} alt={comment.profiles.username} className="w-full h-full object-cover rounded-full" />
                   ) : (
                     <span className="text-white font-bold">{comment.profiles.username[0].toUpperCase()}</span>
                   )}

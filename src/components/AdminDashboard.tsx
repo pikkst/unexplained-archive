@@ -2341,7 +2341,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
                             {check.investigator?.avatar_url ? (
-                              <img src={check.investigator.avatar_url} alt={check.investigator.username} className="w-full h-full object-cover" />
+                              <img src={check.investigator.avatar_url} alt={check.investigator.username} className="w-full h-full object-cover rounded-full" />
                             ) : (
                               <Users className="w-6 h-6 text-gray-500" />
                             )}
@@ -2501,7 +2501,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
                             {app.applicant?.avatar_url ? (
-                              <img src={app.applicant.avatar_url} alt={app.applicant.username} className="w-full h-full object-cover" />
+                              <img src={app.applicant.avatar_url} alt={app.applicant.username} className="w-full h-full object-cover rounded-full" />
                             ) : (
                               <Users className="w-6 h-6 text-gray-500" />
                             )}
@@ -2660,7 +2660,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
                             {inv.avatar_url ? (
-                              <img src={inv.avatar_url} alt={inv.username} className="w-full h-full object-cover" />
+                              <img src={inv.avatar_url} alt={inv.username} className="w-full h-full object-cover rounded-full" />
                             ) : (
                               <Users className="w-5 h-5 text-gray-500" />
                             )}
