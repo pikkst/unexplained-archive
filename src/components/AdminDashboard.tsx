@@ -145,17 +145,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       // Try to fetch from Google Analytics API first with timeout
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5 second timeout
         
         // Fetch both regular analytics and realtime data
-        const [gaResponse, realtimeResponse] = await Promise.all([
-          supabase.functions.invoke('google-analytics', {
-            body: { action: 'fetch_analytics' }
-          }),
-          supabase.functions.invoke('google-analytics', {
-            body: { action: 'fetch_realtime' }
-          })
-        ]);
+        const [gaResponse, realtimeResponse] = await Promise.race([
+          Promise.all([
+            supabase.functions.invoke('google-analytics', {
+              body: { action: 'fetch_analytics' }
+            }),
+            supabase.functions.invoke('google-analytics', {
+              body: { action: 'fetch_realtime' }
+            })
+          ]),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('GA API timeout')), 5000)
+          )
+        ]) as any;
         
         clearTimeout(timeoutId);
 
@@ -293,9 +298,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           ? `${Math.round((bouncedSessions / totalSessions) * 100)}%`
           : 'N/A';
 
+        // Calculate active users (visitors in last 5 minutes)
+        const fiveMinutesAgo = new Date();
+        fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+        const activeUsersNow = new Set(
+          analyticsEvents
+            .filter(e => new Date(e.created_at) > fiveMinutesAgo)
+            .map(e => e.visitor_id)
+        ).size;
+
         setAnalyticsData({
           pageViews,
           uniqueVisitors,
+          activeUsersNow,
           avgSessionDuration,
           bounceRate,
           topPages,
@@ -1627,8 +1642,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           {/* Analytics & SEO Tab */}
           {activeTab === 'analytics' && (
             <>
+              {/* Loading State */}
+              {isLoadingAnalytics && analyticsData.pageViews === 0 && (
+                <div className="mb-6 bg-mystery-800 border border-mystery-700 rounded-xl p-8">
+                  <div className="flex flex-col items-center justify-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mystery-400"></div>
+                    <p className="text-gray-400">Loading analytics data...</p>
+                  </div>
+                </div>
+              )}
+              
               {/* Data Collection Notice */}
-              {analyticsData.pageViews === 0 && analyticsData.uniqueVisitors === 0 && (
+              {!isLoadingAnalytics && analyticsData.pageViews === 0 && analyticsData.uniqueVisitors === 0 && (
                 <div className="mb-6 bg-blue-900/30 border border-blue-700 rounded-xl p-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
