@@ -54,6 +54,7 @@ export const UserProfile: React.FC = () => {
   
   const [notificationPrefs, setNotificationPrefs] = useState<any>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
 
   // Load profile based on username parameter or current user
   useEffect(() => {
@@ -69,6 +70,19 @@ export const UserProfile: React.FC = () => {
         if (data) {
           setProfile(data);
           setIsOwnProfile(currentUserProfile?.username === username);
+          
+          // Load email if profile owner has made it public
+          if (data.show_email && data.id) {
+            try {
+              const { data: emailData } = await supabase
+                .rpc('get_user_public_email', { user_id: data.id });
+              if (emailData) {
+                setProfileEmail(emailData);
+              }
+            } catch (err) {
+              console.log('Could not load public email:', err);
+            }
+          }
           
           // Check if current user is following this profile
           if (currentUserProfile?.id && data.id !== currentUserProfile.id) {
@@ -561,12 +575,12 @@ export const UserProfile: React.FC = () => {
                 <p className="text-gray-400 mb-2">{profile.full_name}</p>
               )}
 
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                {/* Only show email on own profile, or if profile owner has made it public */}
-                {isOwnProfile && user?.email && (
+              <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
+                {/* Show email on own profile OR if profile owner has made it public */}
+                {((isOwnProfile && user?.email) || (!isOwnProfile && profile?.show_email && profileEmail)) && (
                   <div className="flex items-center gap-1">
                     <Mail className="w-4 h-4" />
-                    {user.email}
+                    {isOwnProfile ? user?.email : profileEmail}
                   </div>
                 )}
                 <div className="flex items-center gap-1">

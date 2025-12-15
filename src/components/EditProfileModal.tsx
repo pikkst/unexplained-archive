@@ -20,6 +20,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     location: profile?.location || '',
     website: profile?.website || '',
     theme_color: (profile as any)?.custom_profile_theme?.primaryColor || '#3b82f6', // Default blue
+    show_email: profile?.show_email || false,
   });
   
   const [preferredLanguage, setPreferredLanguage] = useState<string>('en');
@@ -355,6 +356,24 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
             <p className="text-xs text-gray-500 mt-1">
               This will be used as your default language for translations
             </p>
+          </div>
+
+          {/* Email Visibility */}
+          <div className="mb-6">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.show_email}
+                onChange={(e) => setFormData(prev => ({ ...prev, show_email: e.target.checked }))}
+                className="w-5 h-5 bg-mystery-900 border-mystery-700 rounded text-mystery-500 focus:ring-mystery-500 focus:ring-offset-0 cursor-pointer"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-300">Show my email on my public profile</span>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {user?.email ? `Others will see: ${user.email}` : 'Your email will be visible to other users'}
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Error Message */}
