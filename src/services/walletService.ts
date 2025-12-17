@@ -130,6 +130,30 @@ export const walletService = {
     }
   },
 
+  // Add reward to case pool (used when paying with credits)
+  async addRewardToCase(caseId: string, amount: number): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Update the case reward_amount directly
+      const { error } = await supabase
+        .from('cases')
+        .update({ 
+          reward_amount: amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', caseId);
+
+      if (error) {
+        console.error('Error adding reward to case:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error adding reward to case:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   // Withdraw funds (only for verified investigators)
   async requestWithdrawal(amount: number, accessToken: string): Promise<boolean> {
     try {

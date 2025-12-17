@@ -27,6 +27,7 @@ import SubscriptionSuccess from './components/SubscriptionSuccess';
 import PaymentSuccess from './components/PaymentSuccess';
 import { useAnalyticsTracking } from './hooks/useAnalytics';
 import { caseService } from './services/caseService';
+import { supabase } from './lib/supabase';
 
 // Create React Query client
 const queryClient = new QueryClient({
@@ -173,16 +174,36 @@ function AppContent() {
                   onSubmit={async (newCase) => {
                     try {
                       const reward = newCase.reward || 0;
+                      const paymentMethod = (newCase as any).paymentMethod || 'wallet';
                       
-                      // If reward is set, check wallet balance first
+                      // Validate payment if reward is set
                       if (reward > 0) {
-                        const { walletService } = await import('./services/walletService');
-                        const balance = await walletService.getBalance(user!.id);
-                        
-                        if (balance < reward) {
-                          alert(`Insufficient funds in wallet. You have €${balance.toFixed(2)}, but need €${reward.toFixed(2)}. Please add funds to your wallet first.`);
-                          return;
+                        if (paymentMethod === 'credits') {
+                          // Check credits balance
+                          const requiredCredits = reward * 10; // 1 credit = €0.10
+                          const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('credits')
+                            .eq('id', user!.id)
+                            .single();
+                          
+                          const availableCredits = profile?.credits || 0;
+                          
+                          if (availableCredits < requiredCredits) {
+                            alert(`Insufficient credits. You need ${requiredCredits} credits but only have ${availableCredits}. Please redeem a promo code to get more credits!`);
+                            return;
+                          }
+                        } else if (paymentMethod === 'wallet') {
+                          // Check wallet balance
+                          const { walletService } = await import('./services/walletService');
+                          const balance = await walletService.getBalance(user!.id);
+                          
+                          if (balance < reward) {
+                            alert(`Insufficient funds in wallet. You have €${balance.toFixed(2)}, but need €${reward.toFixed(2)}. Please add funds to your wallet first.`);
+                            return;
+                          }
                         }
+                        // Stripe payment will be handled after case creation
                       }
                       
                       const caseData = {
@@ -198,23 +219,62 @@ function AppContent() {
                         ai_generated: newCase.isAiGenerated || false,
                         status: 'OPEN' as const,
                         investigator_id: null,
-                        reward_amount: 0 // Will be updated after donation
+                        reward_amount: 0 // Will be updated after payment
                       };
                       
                       const createdCase = await caseService.createCase(caseData);
                       
-                      // If reward is set, donate from wallet to case pool
+                      // Process payment based on method
                       if (reward > 0 && createdCase) {
-                        const { walletService } = await import('./services/walletService');
-                        const result = await walletService.donateToCase(user!.id, createdCase.id, reward);
-                        
-                        if (!result.success) {
-                          console.error('Failed to process reward payment:', result.error);
-                          alert(`Case created, but reward payment failed: ${result.error}. You can add the reward later from the case page.`);
+                        if (paymentMethod === 'credits') {
+                          // Spend credits and add reward to case
+                          const requiredCredits = reward * 10;
+                          const { data: spendResult } = await supabase.rpc('spend_user_credits', {
+                            p_user_id: user!.id,
+                            p_amount: requiredCredits,
+                            p_source: 'case_reward',
+                            p_description: `Reward for case: ${createdCase.title}`,
+                            p_case_id: createdCase.id
+                          });
+                          
+                          if (!spendResult?.success) {
+                            alert(`Case created, but credit payment failed: ${spendResult?.error}. You can add the reward later from the case page.`);
+                          } else {
+                            // Add the EUR equivalent to the case pool
+                            const { walletService } = await import('./services/walletService');
+                            await walletService.addRewardToCase(createdCase.id, reward);
+                          }
+                        } else if (paymentMethod === 'wallet') {
+                          // Pay from wallet
+                          const { walletService } = await import('./services/walletService');
+                          const result = await walletService.donateToCase(user!.id, createdCase.id, reward);
+                          
+                          if (!result.success) {
+                            console.error('Failed to process reward payment:', result.error);
+                            alert(`Case created, but reward payment failed: ${result.error}. You can add the reward later from the case page.`);
+                          }
+                        } else if (paymentMethod === 'stripe') {
+                          // Redirect to Stripe payment
+                          const { data: session } = await supabase.functions.invoke('create-case-reward-payment', {
+                            body: {
+                              caseId: createdCase.id,
+                              amount: reward,
+                              userId: user!.id
+                            }
+                          });
+                          
+                          if (session?.url) {
+                            // Redirect to Stripe checkout
+                            window.location.href = session.url;
+                            return; // Don't show success message yet
+                          } else {
+                            alert(`Case created, but payment setup failed. You can add the reward later from the case page.`);
+                          }
                         }
                       }
                       
-                      alert(reward > 0 ? `Case submitted successfully with €${reward.toFixed(2)} reward!` : 'Case submitted successfully!');
+                      const paymentMethodText = paymentMethod === 'credits' ? `${reward * 10} credits` : `€${reward.toFixed(2)}`;
+                      alert(reward > 0 ? `Case submitted successfully with ${paymentMethodText} reward!` : 'Case submitted successfully!');
                       window.location.href = '/explore';
                     } catch (error: any) {
                       console.error('Error submitting case:', error);

@@ -27,7 +27,8 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
     detailedDescription: '',
     reward: 0,
     imageUrl: '',
-    isAiGenerated: false
+    isAiGenerated: false,
+    paymentMethod: 'credits' as 'credits' | 'wallet' | 'stripe'
   });
 
   const [aiState, setAiState] = useState<'IDLE' | 'GENERATING' | 'GENERATED' | 'CONFIRMED'>('IDLE');
@@ -38,6 +39,7 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   const [translating, setTranslating] = useState(false);
   const [translatedPrompt, setTranslatedPrompt] = useState<string>('');
   const [userCredits, setUserCredits] = useState(0);
+  const [walletBalance, setWalletBalance] = useState(0);
   const [useCreditsForAI, setUseCreditsForAI] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -50,6 +52,7 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   useEffect(() => {
     loadTemplates();
     loadUserCredits();
+    loadWalletBalance();
   }, []);
   
   const loadUserCredits = async () => {
@@ -61,6 +64,22 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
     
     if (profile) {
       setUserCredits(profile.credits || 0);
+    }
+  };
+  
+  const loadWalletBalance = async () => {
+    try {
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', currentUser.id)
+        .single();
+      
+      if (wallet) {
+        setWalletBalance(wallet.balance || 0);
+      }
+    } catch (error) {
+      console.error('Error loading wallet balance:', error);
     }
   };
   
@@ -847,21 +866,140 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
               )}
             </div>
 
-            <div className="bg-mystery-900 p-4 rounded-lg border border-mystery-700">
+            <div className="bg-mystery-900 p-6 rounded-lg border border-mystery-700 space-y-4">
                <label className="block text-sm font-medium text-gray-400 mb-2 flex items-center gap-2">
                  <DollarSign className="w-4 h-4 text-green-400" /> Initial Bounty / Reward (Optional)
                </label>
-               <p className="text-xs text-gray-500 mb-4">Motivate investigators to prioritize your case. Reward will be deducted from your wallet when you submit.</p>
-               <div className="relative">
-                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                 <input
-                  type="number"
-                  min="0"
-                  value={formData.reward}
-                  onChange={(e) => setFormData({...formData, reward: parseInt(e.target.value) || 0})}
-                  className="w-full bg-mystery-800 border border-mystery-600 rounded-lg pl-8 pr-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none"
-                />
+               <p className="text-xs text-gray-500 mb-4">Motivate investigators to solve your case faster!</p>
+               
+               {/* Payment Method Selection */}
+               <div className="space-y-3">
+                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Payment Method:</label>
+                 
+                 {/* Credits Option */}
+                 <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                   formData.paymentMethod === 'credits' 
+                     ? 'border-mystery-500 bg-mystery-800/50' 
+                     : 'border-mystery-700 hover:border-mystery-600'
+                 }`}>
+                   <input
+                     type="radio"
+                     name="paymentMethod"
+                     value="credits"
+                     checked={formData.paymentMethod === 'credits'}
+                     onChange={(e) => setFormData({...formData, paymentMethod: 'credits'})}
+                     className="mt-1"
+                   />
+                   <div className="flex-1">
+                     <div className="flex items-center gap-2 mb-1">
+                       <Coins className="w-4 h-4 text-yellow-400" />
+                       <span className="font-semibold text-white">Credits</span>
+                       <span className="text-xs text-gray-500">(Available: {userCredits})</span>
+                     </div>
+                     <p className="text-xs text-gray-400">1 credit = €0.10 to investigator</p>
+                     {formData.reward > 0 && (
+                       <p className="text-xs text-mystery-300 mt-1">
+                         Cost: <span className="font-bold text-yellow-400">{formData.reward * 10} credits</span> → 
+                         Investigator gets: <span className="font-bold text-green-400">€{formData.reward.toFixed(2)}</span>
+                       </p>
+                     )}
+                   </div>
+                 </label>
+
+                 {/* Wallet Option */}
+                 <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                   formData.paymentMethod === 'wallet' 
+                     ? 'border-mystery-500 bg-mystery-800/50' 
+                     : 'border-mystery-700 hover:border-mystery-600'
+                 }`}>
+                   <input
+                     type="radio"
+                     name="paymentMethod"
+                     value="wallet"
+                     checked={formData.paymentMethod === 'wallet'}
+                     onChange={(e) => setFormData({...formData, paymentMethod: 'wallet'})}
+                     className="mt-1"
+                   />
+                   <div className="flex-1">
+                     <div className="flex items-center gap-2 mb-1">
+                       <DollarSign className="w-4 h-4 text-green-400" />
+                       <span className="font-semibold text-white">Wallet Balance</span>
+                       <span className="text-xs text-gray-500">(Available: €{walletBalance.toFixed(2)})</span>
+                     </div>
+                     <p className="text-xs text-gray-400">Direct payment from your wallet</p>
+                     {formData.reward > 0 && (
+                       <p className="text-xs text-mystery-300 mt-1">
+                         Cost: <span className="font-bold text-green-400">€{formData.reward.toFixed(2)}</span> → 
+                         Investigator gets: <span className="font-bold text-green-400">€{formData.reward.toFixed(2)}</span>
+                       </p>
+                     )}
+                   </div>
+                 </label>
+
+                 {/* Stripe Option */}
+                 <label className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                   formData.paymentMethod === 'stripe' 
+                     ? 'border-mystery-500 bg-mystery-800/50' 
+                     : 'border-mystery-700 hover:border-mystery-600'
+                 }`}>
+                   <input
+                     type="radio"
+                     name="paymentMethod"
+                     value="stripe"
+                     checked={formData.paymentMethod === 'stripe'}
+                     onChange={(e) => setFormData({...formData, paymentMethod: 'stripe'})}
+                     className="mt-1"
+                   />
+                   <div className="flex-1">
+                     <div className="flex items-center gap-2 mb-1">
+                       <DollarSign className="w-4 h-4 text-blue-400" />
+                       <span className="font-semibold text-white">Pay with Card (Stripe)</span>
+                     </div>
+                     <p className="text-xs text-gray-400">Pay directly when submitting case</p>
+                     {formData.reward > 0 && (
+                       <p className="text-xs text-mystery-300 mt-1">
+                         Cost: <span className="font-bold text-blue-400">€{formData.reward.toFixed(2)}</span> → 
+                         Investigator gets: <span className="font-bold text-green-400">€{formData.reward.toFixed(2)}</span>
+                       </p>
+                     )}
+                   </div>
+                 </label>
                </div>
+
+               {/* Reward Amount Input */}
+               <div className="relative mt-4">
+                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-2">
+                   Reward Amount (€):
+                 </label>
+                 <div className="relative">
+                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">€</span>
+                   <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formData.reward}
+                    onChange={(e) => setFormData({...formData, reward: parseInt(e.target.value) || 0})}
+                    className="w-full bg-mystery-800 border border-mystery-600 rounded-lg pl-8 pr-4 py-3 text-white focus:ring-2 focus:ring-green-500 outline-none"
+                    placeholder="0"
+                  />
+                 </div>
+               </div>
+
+               {/* Validation Messages */}
+               {formData.reward > 0 && (
+                 <div className="mt-3">
+                   {formData.paymentMethod === 'credits' && formData.reward * 10 > userCredits && (
+                     <p className="text-xs text-red-400 flex items-center gap-1">
+                       ⚠️ Insufficient credits. You need {formData.reward * 10} credits but only have {userCredits}.
+                     </p>
+                   )}
+                   {formData.paymentMethod === 'wallet' && formData.reward > walletBalance && (
+                     <p className="text-xs text-red-400 flex items-center gap-1">
+                       ⚠️ Insufficient wallet balance. You need €{formData.reward.toFixed(2)} but only have €{walletBalance.toFixed(2)}.
+                     </p>
+                   )}
+                 </div>
+               )}
             </div>
           </div>
 
