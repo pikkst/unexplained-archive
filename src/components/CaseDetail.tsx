@@ -1262,82 +1262,88 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
 
             <div className="p-6 md:p-8 space-y-6">
               {/* Follow, Save, Export, and Share Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {/* Follow Case Button */}
-                <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <Eye className="w-5 h-5 text-mystery-accent" />
-                    <div>
-                      <h4 className="text-white font-bold text-sm">Get Updates</h4>
-                      <p className="text-xs text-gray-400">{followerCount} following</p>
+                <div className="bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <Eye className="w-5 h-5 text-mystery-accent flex-shrink-0" />
+                      <div className="min-w-0">
+                        <h4 className="text-white font-bold text-sm truncate">Get Updates</h4>
+                        <p className="text-xs text-gray-400 truncate">{followerCount} following</p>
+                      </div>
                     </div>
+                    {isFollowing ? (
+                      <button
+                        onClick={handleUnfollow}
+                        className="w-full px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <BellOff className="w-4 h-4" />
+                        Unfollow
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleFollow}
+                        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Bell className="w-4 h-4" />
+                        Follow
+                      </button>
+                    )}
                   </div>
-                  {isFollowing ? (
-                    <button
-                      onClick={handleUnfollow}
-                      className="px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                    >
-                      <BellOff className="w-4 h-4" />
-                      Unfollow
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleFollow}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                    >
-                      <Bell className="w-4 h-4" />
-                      Follow
-                    </button>
-                  )}
                 </div>
 
                 {/* Save Case Button */}
-                <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-yellow-400" />
-                    <div>
-                      <h4 className="text-white font-bold text-sm">Save for Later</h4>
-                      <p className="text-xs text-gray-400">{isSaved ? 'Saved' : 'Not saved'}</p>
+                <div className="bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <h4 className="text-white font-bold text-sm truncate">Save for Later</h4>
+                        <p className="text-xs text-gray-400 truncate">{isSaved ? 'Saved' : 'Not saved'}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={handleSaveCase}
+                      disabled={savingCase}
+                      className={`w-full px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                        isSaved
+                          ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
+                          : 'bg-mystery-700 hover:bg-mystery-600 text-white'
+                      }`}
+                    >
+                      {savingCase ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      ) : (
+                        <>
+                          {isSaved ? '📌' : '☐'} {isSaved ? 'Saved' : 'Save'}
+                        </>
+                      )}
+                    </button>
                   </div>
-                  <button
-                    onClick={handleSaveCase}
-                    disabled={savingCase}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${
-                      isSaved
-                        ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
-                        : 'bg-mystery-700 hover:bg-mystery-600 text-white'
-                    }`}
-                  >
-                    {savingCase ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                    ) : (
-                      <>
-                        {isSaved ? '📌' : '☐'} {isSaved ? 'Saved' : 'Save'}
-                      </>
-                    )}
-                  </button>
                 </div>
 
                 {/* Export Case Button */}
                 <CaseExportButton caseData={caseData} />
 
                 {/* Share on Facebook Button */}
-                <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <Share2 className="w-5 h-5 text-blue-400" />
-                    <div>
-                      <h4 className="text-white font-bold text-sm">Share Case</h4>
-                      <p className="text-xs text-gray-400">Share on Facebook</p>
+                <div className="bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <Share2 className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <h4 className="text-white font-bold text-sm truncate">Share Case</h4>
+                        <p className="text-xs text-gray-400 truncate">Share on Facebook</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={handleShareOnFacebook}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      Share
+                    </button>
                   </div>
-                  <button
-                    onClick={handleShareOnFacebook}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    Share
-                  </button>
                 </div>
               </div>
 
