@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Eye, Shield, Users, Activity, FileText, Star, Map as MapIcon, TrendingUp, Award, MessageCircle, Zap, Facebook } from 'lucide-react';
+import { ArrowRight, Eye, Shield, Users, Activity, FileText, Star, Map as MapIcon, TrendingUp, Award, MessageCircle, Zap, Facebook, Share2 } from 'lucide-react';
 import { useCases } from '../hooks/useCases';
 import { CaseMap } from './CaseMap';
 import { supabase } from '../lib/supabase';
 import { boostService } from '../services/boostService';
 import { PromotionalBanner } from './PromotionalBanner';
+import { SocialShare } from './SocialShare';
 
 export const LandingPage: React.FC = () => {
   const { cases, loading } = useCases({ limit: 10 });
@@ -464,6 +465,23 @@ export const LandingPage: React.FC = () => {
                   <span>Facebook</span>
                 </a>
               </div>
+            </div>
+
+            {/* Social Share */}
+            <div>
+              <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-mystery-400" />
+                Share Platform
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Help us grow by sharing with others
+              </p>
+              <SocialShare 
+                url={window.location.origin}
+                title="Unexplained Archive - Share Your Mysterious Stories"
+                description="Explore UFO sightings, paranormal encounters, and unexplained phenomena. Join our community of investigators!"
+                compact
+              />
             </div>
           </div>
 

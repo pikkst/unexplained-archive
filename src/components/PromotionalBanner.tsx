@@ -75,8 +75,8 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
   }, []);
 
   useEffect(() => {
+    checkActiveCampaigns(); // Check campaigns for everyone
     if (user) {
-      checkActiveCampaigns();
       checkUserBenefits();
     }
   }, [user]);
@@ -90,19 +90,25 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
         .eq('status', 'active')
         .lte('start_date', new Date().toISOString())
         .gte('end_date', new Date().toISOString())
-        .limit(1)
-        .single();
+        .limit(1);
 
       if (error) {
-        // No active campaign found
+        console.error('Campaign query error:', error);
         return;
       }
 
+      if (!data || data.length === 0) {
+        console.log('No active campaigns found');
+        return;
+      }
+
+      const activeCampaign = data[0];
+
       // Check if user is eligible based on target segment
-      const isEligible = await checkEligibility(data);
+      const isEligible = await checkEligibility(activeCampaign);
       if (isEligible) {
-        setCampaign(data);
-        trackImpression(data.id);
+        setCampaign(activeCampaign);
+        trackImpression(activeCampaign.id);
       }
     } catch (error) {
       console.error('Error checking campaigns:', error);
@@ -110,7 +116,8 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
   };
 
   const checkEligibility = async (campaign: any): Promise<boolean> => {
-    if (!user) return false;
+    // Anonymous users can see campaigns (they just can't redeem without logging in)
+    if (!user) return true;
 
     // Check if already redeemed
     const { data: redemptions } = await supabase
