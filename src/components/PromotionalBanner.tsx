@@ -421,7 +421,7 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
             {campaign.requires_code ? (
               <button
                 onClick={() => setShowPromoInput(!showPromoInput)}
-                className="bg-white text-mystery-600 hover:bg-mystery-50 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 whitespace-nowrap"
+                className="bg-white text-mystery-900 hover:bg-mystery-50 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 whitespace-nowrap"
               >
                 <Tag className="w-4 h-4" />
                 Enter Code
@@ -430,7 +430,7 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
               <button
                 onClick={redeemCampaign}
                 disabled={isRedeeming}
-                className="bg-white text-mystery-600 hover:bg-mystery-50 disabled:opacity-50 px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap"
+                className="bg-white text-mystery-900 hover:bg-mystery-50 disabled:opacity-50 px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap"
               >
                 {isRedeeming ? 'Claiming...' : campaign.cta_button_text || 'Claim Now'}
               </button>
