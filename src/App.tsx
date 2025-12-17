@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { UserRole } from './types';
@@ -80,6 +80,7 @@ function ProtectedRoute({
 
 function AppContent() {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
 
   // Enable first-party analytics tracking for all route changes
   useAnalyticsTracking();
@@ -275,7 +276,7 @@ function AppContent() {
                       
                       const paymentMethodText = paymentMethod === 'credits' ? `${reward * 10} credits` : `€${reward.toFixed(2)}`;
                       alert(reward > 0 ? `Case submitted successfully with ${paymentMethodText} reward!` : 'Case submitted successfully!');
-                      window.location.href = '/explore';
+                      navigate('/explore');
                     } catch (error: any) {
                       console.error('Error submitting case:', error);
                       alert('Failed to submit case: ' + (error.message || 'Unknown error'));
