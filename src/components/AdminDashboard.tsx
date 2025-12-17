@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { MassNotificationPanel } from './MassNotificationPanel';
 import { SubscriptionGroupNotifications } from './SubscriptionGroupNotifications';
 import WorldMapVisualization from './WorldMapVisualization';
+import { CampaignManager } from './CampaignManager';
 
 const COLORS = ['#6366f1', '#22d3ee', '#a855f7', '#94a3b8', '#f59e0b', '#10b981'];
 
@@ -32,7 +33,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions' | 'campaigns'>('overview');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [stats, setStats] = useState({
   totalCases: 0,
@@ -1086,6 +1087,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             Subscriptions & Groups
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('campaigns')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'campaigns'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+            </svg>
+            Campaigns
           </div>
         </button>
       </div>
@@ -2778,6 +2794,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
               <SubscriptionGroupNotifications />
             </div>
+          )}
+          
+          {/* CAMPAIGNS TAB */}
+          {activeTab === 'campaigns' && (
+            <CampaignManager />
           )}
         </>
       )}

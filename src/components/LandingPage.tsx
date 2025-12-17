@@ -5,6 +5,7 @@ import { useCases } from '../hooks/useCases';
 import { CaseMap } from './CaseMap';
 import { supabase } from '../lib/supabase';
 import { boostService } from '../services/boostService';
+import { PromotionalBanner } from './PromotionalBanner';
 
 export const LandingPage: React.FC = () => {
   const { cases, loading } = useCases({ limit: 10 });
@@ -71,6 +72,9 @@ export const LandingPage: React.FC = () => {
   }, []);
   return (
     <div className="flex flex-col min-h-screen">
+      {/* Promotional Banner */}
+      <PromotionalBanner position="top" />
+      
       {/* Hero Section */}
       <div className="relative bg-mystery-900 overflow-hidden">
         <div className="absolute inset-0">
