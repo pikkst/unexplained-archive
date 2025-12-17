@@ -9,16 +9,19 @@ VALUES (
 ) ON CONFLICT (id) DO UPDATE SET public = true;
 
 -- Allow public read access to media bucket
-CREATE POLICY IF NOT EXISTS "Public read access for media"
+DROP POLICY IF EXISTS "Public read access for media" ON storage.objects;
+CREATE POLICY "Public read access for media"
 ON storage.objects FOR SELECT
 USING (bucket_id = 'media');
 
 -- Allow authenticated users to upload to media bucket
-CREATE POLICY IF NOT EXISTS "Authenticated users can upload media"
+DROP POLICY IF EXISTS "Authenticated users can upload media" ON storage.objects;
+CREATE POLICY "Authenticated users can upload media"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'media' AND auth.role() = 'authenticated');
 
 -- Allow service role full access (for Edge Functions)
-CREATE POLICY IF NOT EXISTS "Service role full access to media"
+DROP POLICY IF EXISTS "Service role full access to media" ON storage.objects;
+CREATE POLICY "Service role full access to media"
 ON storage.objects FOR ALL
 USING (bucket_id = 'media' AND auth.role() = 'service_role');

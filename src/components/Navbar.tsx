@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthModal } from './AuthModal';
-import { Menu, Search, Bell, LogOut, User as UserIcon, Heart, MessageCircle, Trophy, Map, Plus, Mail, Wallet as WalletIcon } from 'lucide-react';
+import { Menu, Search, Bell, LogOut, User as UserIcon, Heart, MessageCircle, Trophy, Map, Plus, Mail, Wallet as WalletIcon, Coins } from 'lucide-react';
 import { getNotifications, getUnreadCount, markNotificationRead, subscribeToNotifications, Notification } from '../services/notificationService';
 import { getUnreadMessageCount } from '../services/notificationService';
+import { supabase } from '../lib/supabase';
 
 // Helper function to get rank based on reputation
 const getReputationRank = (reputation: number): { rank: string; color: string; icon: string } => {
@@ -24,12 +25,14 @@ export const Navbar: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [userCredits, setUserCredits] = useState(0);
 
   // Load notifications and unread counts
   useEffect(() => {
     if (user) {
       loadNotifications();
       loadUnreadCounts();
+      loadUserCredits();
 
       // Subscribe to real-time notifications
       const unsubscribe = subscribeToNotifications(user.id, (notification) => {
@@ -37,9 +40,46 @@ export const Navbar: React.FC = () => {
         setUnreadCount(prev => prev + 1);
       });
 
-      return () => unsubscribe();
+      // Subscribe to credits changes
+      const creditsSubscription = supabase
+        .channel('credits_navbar')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `id=eq.${user.id}`
+          },
+          (payload) => {
+            setUserCredits(payload.new.credits || 0);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        unsubscribe();
+        creditsSubscription.unsubscribe();
+      };
     }
   }, [user]);
+
+  const loadUserCredits = async () => {
+    if (!user) return;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile) {
+        setUserCredits(profile.credits || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load credits:', error);
+    }
+  };
 
   const loadNotifications = async () => {
     if (!user) return;
@@ -218,6 +258,13 @@ export const Navbar: React.FC = () => {
                       </span>
                     )}
                   </Link>
+
+                  {/* Credits Badge */}
+                  <div className="hidden md:flex items-center gap-2 bg-purple-600/20 px-3 py-1.5 rounded-full border border-purple-500/30 hover:bg-purple-600/30 transition-colors cursor-pointer"
+                       title="Your available credits">
+                    <Coins className="w-4 h-4 text-purple-400" />
+                    <span className="font-bold text-purple-200 text-sm">{userCredits}</span>
+                  </div>
 
                   <Link
                     to="/submit-case"

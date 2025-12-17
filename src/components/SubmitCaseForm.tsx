@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Case, User } from '../types';
-import { Upload, Camera, MapPin, Calendar, FileText, DollarSign, Sparkles, RefreshCw, Check, Map as MapIcon, X, Clock, FileSearch } from 'lucide-react';
+import { Upload, Camera, MapPin, Calendar, FileText, DollarSign, Sparkles, RefreshCw, Check, Map as MapIcon, X, Clock, FileSearch, Coins } from 'lucide-react';
 import { CaseMap } from './CaseMap';
 import { caseService } from '../services/caseService';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
+import { CreditsDisplay } from './CreditsDisplay';
 
 interface SubmitCaseFormProps {
   currentUser: User;
@@ -35,6 +36,8 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   const [autoTranslate, setAutoTranslate] = useState(true);
   const [translating, setTranslating] = useState(false);
   const [translatedPrompt, setTranslatedPrompt] = useState<string>('');
+  const [userCredits, setUserCredits] = useState(0);
+  const [useCreditsForAI, setUseCreditsForAI] = useState(false);
   
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -42,7 +45,20 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   
   useEffect(() => {
     loadTemplates();
+    loadUserCredits();
   }, []);
+  
+  const loadUserCredits = async () => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('credits')
+      .eq('id', currentUser.id)
+      .single();
+    
+    if (profile) {
+      setUserCredits(profile.credits || 0);
+    }
+  };
   
   const loadTemplates = async () => {
     try {
@@ -242,6 +258,30 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
       return;
     }
     
+    // Check if using credits
+    if (useCreditsForAI) {
+      if (userCredits < 5) {
+        alert('You need 5 credits to generate an AI image. Redeem a promo code to get credits!');
+        return;
+      }
+      
+      // Spend credits first
+      const { data: spendResult } = await supabase.rpc('spend_user_credits', {
+        p_user_id: currentUser.id,
+        p_amount: 5,
+        p_source: 'ai_generation',
+        p_description: `AI image generation for case: ${formData.title || 'Untitled'}`,
+        p_case_id: null
+      });
+      
+      if (!spendResult?.success) {
+        alert(spendResult?.error || 'Failed to spend credits');
+        return;
+      }
+      
+      setUserCredits(spendResult.new_balance);
+    }
+    
     setAiState('GENERATING');
     setAiError(null);
     setTranslating(autoTranslate);
@@ -272,8 +312,8 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
       });
       setAiState('GENERATED');
       
-      if (result.remaining === 0) {
-        setAiError('You have used all free AI generations for this case');
+      if (result.remaining === 0 && !useCreditsForAI) {
+        setAiError('You have used all free AI generations for this case. Use credits for more!');
       }
       
     } catch (error: any) {
@@ -577,21 +617,45 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
               )}
               
               {!formData.isAiGenerated && aiState === 'IDLE' ? (
-                <div className="flex flex-col md:flex-row gap-4 items-center">
-                  <div className="flex-1 w-full h-32 border-2 border-dashed border-mystery-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-mystery-500 hover:text-mystery-400 cursor-pointer transition-colors">
-                    <Upload className="w-8 h-8 mb-2" />
-                    <span className="text-sm">Upload File</span>
+                <>
+                  <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex-1 w-full h-32 border-2 border-dashed border-mystery-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-mystery-500 hover:text-mystery-400 cursor-pointer transition-colors">
+                      <Upload className="w-8 h-8 mb-2" />
+                      <span className="text-sm">Upload File</span>
+                    </div>
+                    <div className="text-gray-500 font-bold">OR</div>
+                    <div 
+                      onClick={handleGenerateAiImage}
+                      className="flex-1 w-full h-32 border-2 border-mystery-600 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:border-mystery-accent hover:text-mystery-accent group"
+                    >
+                      <Sparkles className="w-8 h-8 mb-2 group-hover:animate-pulse" />
+                      <span className="text-sm">Generate with AI</span>
+                      <span className="text-xs text-gray-600 mt-1">
+                        {useCreditsForAI ? '5 credits' : 'FREE - 2x per case'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-gray-500 font-bold">OR</div>
-                  <div 
-                    onClick={handleGenerateAiImage}
-                    className="flex-1 w-full h-32 border-2 border-mystery-600 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all hover:border-mystery-accent hover:text-mystery-accent group"
-                  >
-                    <Sparkles className="w-8 h-8 mb-2 group-hover:animate-pulse" />
-                    <span className="text-sm">Generate with AI</span>
-                    <span className="text-xs text-gray-600 mt-1">FREE - 2x per case</span>
-                  </div>
-                </div>
+                  
+                  {/* Credits payment option */}
+                  {userCredits >= 5 && (
+                    <div className="mt-4 p-3 bg-purple-600/10 border border-purple-500/30 rounded-lg">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useCreditsForAI}
+                          onChange={(e) => setUseCreditsForAI(e.target.checked)}
+                          className="w-4 h-4 rounded bg-mystery-900 border-mystery-700 text-purple-500 focus:ring-purple-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Coins className="w-4 h-4 text-purple-400" />
+                          <span className="text-sm text-purple-300">
+                            Use 5 credits instead of free limit ({userCredits} available)
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="relative w-full h-48 bg-black rounded-lg overflow-hidden flex items-center justify-center">
                   {aiState === 'GENERATING' ? (
