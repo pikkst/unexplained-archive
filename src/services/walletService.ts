@@ -90,8 +90,8 @@ export const walletService = {
           userId,
           amount,
           caseId: 'wallet_deposit', // Special ID for wallet deposits
-          successUrl: `${window.location.origin}/payment/success?type=deposit&amount=${amount}`,
-          cancelUrl: `${window.location.origin}/wallet?deposit=canceled`
+          successUrl: `${window.location.origin}/unexplained-archive/payment/success?type=deposit&amount=${amount}`,
+          cancelUrl: `${window.location.origin}/unexplained-archive/wallet?deposit=canceled`
         }
       });
 

@@ -93,7 +93,7 @@ export const ArticleDetail: React.FC = () => {
 
   const handleShareOnFacebook = () => {
     if (!article) return;
-    const articleUrl = `${window.location.origin}/articles/${article.slug}`;
+    const articleUrl = `${window.location.origin}/unexplained-archive/articles/${article.slug}`;
     const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`;
     window.open(facebookShareUrl, '_blank', 'width=600,height=400');
   };

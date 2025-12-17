@@ -104,8 +104,8 @@ export const subscriptionService = {
           userId,
           planType,
           price: plan.price,
-          successUrl: `${window.location.origin}/profile?subscription=success`,
-          cancelUrl: `${window.location.origin}/profile?subscription=canceled`
+          successUrl: `${window.location.origin}/unexplained-archive/profile?subscription=success`,
+          cancelUrl: `${window.location.origin}/unexplained-archive/profile?subscription=canceled`
         }
       });
 

@@ -111,8 +111,8 @@ export const stripeService = {
         body: {
           planType,
           userId,
-          successUrl: `${window.location.origin}/payment/success?type=subscription`,
-          cancelUrl: `${window.location.origin}/subscription?canceled=true`
+          successUrl: `${window.location.origin}/unexplained-archive/payment/success?type=subscription`,
+          cancelUrl: `${window.location.origin}/unexplained-archive/subscription?canceled=true`
         }
       });
 
@@ -262,8 +262,8 @@ export const stripeService = {
       const { data, error } = await supabase.functions.invoke('setup-stripe-connect', {
         body: { 
           userId,
-          refreshUrl: `${window.location.origin}/wallet`,
-          returnUrl: `${window.location.origin}/wallet?setup=complete`
+          refreshUrl: `${window.location.origin}/unexplained-archive/wallet`,
+          returnUrl: `${window.location.origin}/unexplained-archive/wallet?setup=complete`
         }
       });
 

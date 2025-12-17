@@ -778,7 +778,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
   };
 
   const handleShareOnFacebook = () => {
-    const caseUrl = `${window.location.origin}/cases/${caseData.id}`;
+    const caseUrl = `${window.location.origin}/unexplained-archive/cases/${caseData.id}`;
     const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(caseUrl)}`;
     window.open(facebookShareUrl, '_blank', 'width=600,height=400');
   };
