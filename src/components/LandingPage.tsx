@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Eye, Shield, Users, Activity, FileText, Star, Map as MapIcon, TrendingUp, Award, MessageCircle, Zap } from 'lucide-react';
+import { ArrowRight, Eye, Shield, Users, Activity, FileText, Star, Map as MapIcon, TrendingUp, Award, MessageCircle, Zap, Facebook } from 'lucide-react';
 import { useCases } from '../hooks/useCases';
 import { CaseMap } from './CaseMap';
 import { supabase } from '../lib/supabase';
@@ -438,17 +438,28 @@ export const LandingPage: React.FC = () => {
             <div>
               <h3 className="text-white font-bold text-lg mb-4">Join Our Community</h3>
               <p className="text-gray-400 text-sm mb-4">
-                Connect with investigators and discuss mysterious cases on Discord
+                Connect with investigators and discuss mysterious cases
               </p>
-              <a
-                href="https://discord.gg/YDbn9mhB"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span>Join Discord</span>
-              </a>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="https://discord.gg/YDbn9mhB"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>Discord</span>
+                </a>
+                <a
+                  href="https://www.facebook.com/profile.php?id=61585330192918"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-[#1877F2] hover:bg-[#166FE5] text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
+                >
+                  <Facebook className="w-5 h-5" />
+                  <span>Facebook</span>
+                </a>
+              </div>
             </div>
           </div>
 
