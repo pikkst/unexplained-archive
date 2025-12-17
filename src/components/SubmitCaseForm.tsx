@@ -26,13 +26,14 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
     description: '',
     detailedDescription: '',
     reward: 0,
-    imageUrl: '',
+    mediaUrls: [] as string[],
     isAiGenerated: false,
     paymentMethod: 'credits' as 'credits' | 'wallet' | 'stripe'
   });
 
   const [aiState, setAiState] = useState<'IDLE' | 'GENERATING' | 'GENERATED' | 'CONFIRMED'>('IDLE');
   const [regenCount, setRegenCount] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState<{url: string; name: string; size: number; type: string}[]>([]);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [autoTranslate, setAutoTranslate] = useState(true);
@@ -328,11 +329,21 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
         locationText || formData.location
       );
       
+      // Add AI generated image to media array
+      const newMediaUrls = [...formData.mediaUrls, result.imageUrl];
+      const newFiles = [...uploadedFiles, {
+        url: result.imageUrl,
+        name: 'AI Generated Image',
+        size: 0,
+        type: 'image/ai-generated'
+      }];
+      
       setFormData({ 
         ...formData, 
-        imageUrl: result.imageUrl, 
+        mediaUrls: newMediaUrls,
         isAiGenerated: true 
       });
+      setUploadedFiles(newFiles);
       setAiState('GENERATED');
       
       if (result.remaining === 0 && !useCreditsForAI) {
@@ -353,58 +364,115 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    // Validate file type - allow images and videos
+    // Check if adding these files would exceed the limit
+    const currentFileCount = uploadedFiles.length;
+    if (currentFileCount + files.length > 5) {
+      alert(`You can only upload up to 5 files. You currently have ${currentFileCount} file(s). Please remove some files first.`);
+      return;
+    }
+
+    // Calculate total size including existing files
+    const currentTotalSize = uploadedFiles.reduce((sum, f) => sum + f.size, 0);
+    const newFilesSize = files.reduce((sum, f) => sum + f.size, 0);
+    const totalSize = currentTotalSize + newFilesSize;
+
+    if (totalSize > 50 * 1024 * 1024) {
+      const currentSizeMB = (currentTotalSize / (1024 * 1024)).toFixed(1);
+      const newSizeMB = (newFilesSize / (1024 * 1024)).toFixed(1);
+      alert(`Total file size would exceed 50MB limit. Current: ${currentSizeMB}MB, Adding: ${newSizeMB}MB. Please select smaller files.`);
+      return;
+    }
+
+    // Validate file types
     const allowedTypes = [
       'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
       'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'
     ];
-    if (!allowedTypes.includes(file.type)) {
-      alert('Please upload an image (JPEG, PNG, GIF, WebP) or video file (MP4, MOV, AVI, WebM)');
-      return;
-    }
 
-    // Validate file size (max 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      alert('File size must be less than 50MB');
-      return;
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        alert(`"${file.name}" is not a valid file type. Please upload images (JPEG, PNG, GIF, WebP) or videos (MP4, MOV, AVI, WebM).`);
+        return;
+      }
     }
 
     setUploadingFile(true);
     setAiError(null);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
-      const filePath = `case-images/${fileName}`;
+      const uploadedUrls: string[] = [];
+      const newFileMetadata: {url: string; name: string; size: number; type: string}[] = [];
 
-      const { error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+      for (const file of files) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentUser.id}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `case-images/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('media')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('media')
+          .getPublicUrl(filePath);
+
+        uploadedUrls.push(publicUrl);
+        newFileMetadata.push({
+          url: publicUrl,
+          name: file.name,
+          size: file.size,
+          type: file.type
         });
+      }
 
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('media')
-        .getPublicUrl(filePath);
+      // Update state with new files
+      const allMediaUrls = [...formData.mediaUrls, ...uploadedUrls];
+      const allFiles = [...uploadedFiles, ...newFileMetadata];
 
       setFormData({
         ...formData,
-        imageUrl: publicUrl,
+        mediaUrls: allMediaUrls,
         isAiGenerated: false
       });
-      setAiState('CONFIRMED');
+      setUploadedFiles(allFiles);
+      
+      if (aiState === 'IDLE') {
+        setAiState('CONFIRMED');
+      }
       
     } catch (error: any) {
       console.error('File upload error:', error);
-      setAiError(error.message || 'Failed to upload file');
+      setAiError(error.message || 'Failed to upload files');
     } finally {
       setUploadingFile(false);
+      // Reset the input
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    const newMediaUrls = formData.mediaUrls.filter((_, i) => i !== index);
+    const newFiles = uploadedFiles.filter((_, i) => i !== index);
+    
+    setFormData({
+      ...formData,
+      mediaUrls: newMediaUrls
+    });
+    setUploadedFiles(newFiles);
+
+    // Reset AI state if no files left
+    if (newMediaUrls.length === 0 && aiState === 'CONFIRMED') {
+      setAiState('IDLE');
     }
   };
 
@@ -473,8 +541,8 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.imageUrl && aiState !== 'CONFIRMED') {
-      alert("Please upload media or generate/confirm an AI visualization.");
+    if (formData.mediaUrls.length === 0 && aiState !== 'CONFIRMED') {
+      alert("Please upload at least one media file or generate an AI visualization.");
       return;
     }
 
@@ -766,7 +834,12 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
              {/* Media Section */}
              <div className="bg-mystery-900 p-4 rounded-lg border border-mystery-700">
-              <label className="block text-sm font-medium text-gray-400 mb-4">Evidence Media</label>
+              <label className="block text-sm font-medium text-gray-400 mb-2 flex items-center justify-between">
+                <span>Evidence Media ({uploadedFiles.length}/5)</span>
+                <span className="text-xs text-gray-500">
+                  {uploadedFiles.length > 0 && `Total: ${(uploadedFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024)).toFixed(1)}MB / 50MB`}
+                </span>
+              </label>
               
               {/* Error message */}
               {aiError && (
@@ -774,21 +847,53 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
                   {aiError}
                 </div>
               )}
+
+              {/* Uploaded Files Gallery */}
+              {uploadedFiles.length > 0 && (
+                <div className="mb-4 grid grid-cols-2 gap-2">
+                  {uploadedFiles.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square bg-black rounded-lg overflow-hidden">
+                        {file.type.startsWith('video/') ? (
+                          <video src={file.url} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-2">
+                        <p className="text-white text-xs mb-2 text-center truncate w-full">{file.name}</p>
+                        {file.type === 'image/ai-generated' && (
+                          <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs mb-2">AI Generated</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFile(index)}
+                          className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs flex items-center gap-1"
+                        >
+                          <X className="w-3 h-3" /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               
-              {!formData.isAiGenerated && aiState === 'IDLE' ? (
+              {/* Upload Controls */}
+              {uploadedFiles.length < 5 && (
                 <>
                   <div className="flex flex-col md:flex-row gap-4 items-center">
                     <label className="flex-1 w-full h-32 border-2 border-dashed border-mystery-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-mystery-500 hover:text-mystery-400 cursor-pointer transition-colors">
                       <input
                         type="file"
                         accept="image/*,video/*"
+                        multiple
                         onChange={handleFileUpload}
                         className="hidden"
                         disabled={uploadingFile}
                       />
                       <Upload className="w-8 h-8 mb-2" />
-                      <span className="text-sm">{uploadingFile ? 'Uploading...' : 'Upload Image/Video'}</span>
-                      <span className="text-xs text-gray-600 mt-1">Max 50MB</span>
+                      <span className="text-sm">{uploadingFile ? 'Uploading...' : 'Upload Images/Videos'}</span>
+                      <span className="text-xs text-gray-600 mt-1">Up to {5 - uploadedFiles.length} more files</span>
                     </label>
                     <div className="text-gray-500 font-bold">OR</div>
                     <div 
@@ -823,45 +928,17 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
                     </div>
                   )}
                 </>
-              ) : (
-                <div className="relative w-full h-48 bg-black rounded-lg overflow-hidden flex items-center justify-center">
-                  {aiState === 'GENERATING' ? (
-                    <div className="flex flex-col items-center text-mystery-accent animate-pulse">
-                      <Sparkles className="w-8 h-8 mb-2" />
-                      <span className="text-sm">
-                        {translating ? 'Translating to English...' : 'Visualizing based on report...'}
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                       <img src={formData.imageUrl} className="w-full h-full object-cover" />
-                       <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                         {aiState === 'GENERATED' && (
-                           <>
-                             <button 
-                               onClick={() => setAiState('CONFIRMED')}
-                               className="px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold flex items-center gap-1"
-                             >
-                               <Check className="w-4 h-4" /> Confirm
-                             </button>
-                             {regenCount < 1 && (
-                               <button 
-                                 onClick={handleRegenerate}
-                                 className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold flex items-center gap-1"
-                               >
-                                 <RefreshCw className="w-4 h-4" /> Retry (1 left)
-                               </button>
-                             )}
-                           </>
-                         )}
-                         {aiState === 'CONFIRMED' && (
-                            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold border border-green-500">
-                              Confirmed for Profile/Case
-                            </span>
-                         )}
-                       </div>
-                    </>
-                  )}
+              )}
+
+              {/* AI Generation in Progress */}
+              {aiState === 'GENERATING' && (
+                <div className="w-full h-32 bg-black rounded-lg flex items-center justify-center">
+                  <div className="flex flex-col items-center text-mystery-accent animate-pulse">
+                    <Sparkles className="w-8 h-8 mb-2" />
+                    <span className="text-sm">
+                      {translating ? 'Translating to English...' : 'Visualizing based on report...'}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

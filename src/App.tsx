@@ -215,7 +215,7 @@ function AppContent() {
                         location: newCase.location || '',
                         latitude: newCase.coordinates?.lat || null,
                         longitude: newCase.coordinates?.lng || null,
-                        media_urls: newCase.imageUrl ? [newCase.imageUrl] : [],
+                        media_urls: (newCase as any).mediaUrls || [],
                         ai_generated: newCase.isAiGenerated || false,
                         status: 'OPEN' as const,
                         investigator_id: null,
