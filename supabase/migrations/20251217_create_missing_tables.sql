@@ -136,6 +136,20 @@ ALTER TABLE campaign_redemptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campaign_analytics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE campaign_ai_content ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Admins can manage campaigns" ON promotional_campaigns;
+DROP POLICY IF EXISTS "Anyone can view active campaigns" ON promotional_campaigns;
+DROP POLICY IF EXISTS "Users can view active campaigns" ON promotional_campaigns;
+DROP POLICY IF EXISTS "Admins can manage promo codes" ON promo_codes;
+DROP POLICY IF EXISTS "Anyone can check promo codes" ON promo_codes;
+DROP POLICY IF EXISTS "Users can check promo codes" ON promo_codes;
+DROP POLICY IF EXISTS "Users can view their own redemptions" ON campaign_redemptions;
+DROP POLICY IF EXISTS "Admins can view all redemptions" ON campaign_redemptions;
+DROP POLICY IF EXISTS "System can create redemptions" ON campaign_redemptions;
+DROP POLICY IF EXISTS "Admins can manage analytics" ON campaign_analytics;
+DROP POLICY IF EXISTS "Admins can manage AI content" ON campaign_ai_content;
+DROP POLICY IF EXISTS "Anyone can view campaign AI content" ON campaign_ai_content;
+
 -- RLS Policies for promotional_campaigns
 CREATE POLICY "Admins can manage campaigns" ON promotional_campaigns
     FOR ALL USING (
