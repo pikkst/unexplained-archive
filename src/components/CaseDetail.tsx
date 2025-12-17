@@ -132,6 +132,12 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
       setProposal(caseData.resolutionProposal || '');
       setEvidenceFiles(caseData.evidence_files || []);
       setMapInitialized(false); // Reset map when case changes
+      
+      // Track case view with referral tracking
+      (async () => {
+        const { analyticsService } = await import('../services/analyticsService');
+        await analyticsService.trackCaseView(caseData.id);
+      })();
     }
   }, [caseData]);
 
@@ -777,8 +783,17 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
     }
   };
 
-  const handleShareOnFacebook = () => {
-    const caseUrl = `${window.location.origin}/unexplained-archive/cases/${caseData.id}`;
+  const handleShareOnFacebook = async () => {
+    // Track the share event
+    const { analyticsService } = await import('../services/analyticsService');
+    const shareId = await analyticsService.trackShare({
+      case_id: caseData.id,
+      share_source: 'facebook',
+      sharer_id: user?.id
+    });
+    
+    // Build URL with tracking parameters
+    const caseUrl = `${window.location.origin}/unexplained-archive/cases/${caseData.id}?share_id=${shareId}&share_source=facebook`;
     const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(caseUrl)}`;
     window.open(facebookShareUrl, '_blank', 'width=600,height=400');
   };
