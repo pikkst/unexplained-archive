@@ -149,7 +149,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, full_name, email, avatar_url, role, credits, lifetime_credits_earned, lifetime_credits_spent, reputation, is_pro_member, created_at')
+        .select('id, username, full_name, avatar_url, role, credits, lifetime_credits_earned, lifetime_credits_spent, reputation, is_pro_member, created_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -912,7 +912,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     const filtered = users.filter(user => 
       (user.username?.toLowerCase().includes(searchLower)) ||
       (user.full_name?.toLowerCase().includes(searchLower)) ||
-      (user.email?.toLowerCase().includes(searchLower)) ||
       (user.id?.toLowerCase().includes(searchLower))
     );
     setFilteredUsers(filtered);
@@ -2957,7 +2956,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search users by username, name, email, or ID..."
+                      placeholder="Search users by username, name, or ID..."
                       value={userSearchTerm}
                       onChange={(e) => setUserSearchTerm(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 bg-mystery-900 border border-mystery-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-mystery-400"
@@ -2990,7 +2989,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                             <div className="flex-1 min-w-0">
                               <h3 className="font-medium text-white truncate">{user.username || 'Anonymous'}</h3>
                               <p className="text-xs text-gray-400 truncate">{user.full_name || 'No name'}</p>
-                              <p className="text-xs text-gray-500 truncate mt-1">{user.email || 'No email'}</p>
                             </div>
                           </div>
 
