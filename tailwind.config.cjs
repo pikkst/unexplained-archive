@@ -17,6 +17,10 @@ module.exports = {
           600: '#475569',
           500: '#6366f1',
           400: '#818cf8',
+          300: '#a5b4fc',
+          200: '#c7d2fe',
+          100: '#e0e7ff',
+          50: '#eef2ff',
           accent: '#22d3ee', // Cyan for accents
         },
       },

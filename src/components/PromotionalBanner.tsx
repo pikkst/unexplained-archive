@@ -89,8 +89,8 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
         .from('promotional_campaigns')
         .select('*')
         .eq('status', 'active')
-        .lte('start_date', new Date().toISOString())
-        .gte('end_date', new Date().toISOString())
+        .or('start_date.is.null,start_date.lte.' + new Date().toISOString())
+        .or('end_date.is.null,end_date.gte.' + new Date().toISOString())
         .limit(1);
 
       if (error) {
@@ -405,7 +405,7 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
                 {campaign.banner_text || campaign.name}
               </p>
               {campaign.requires_code && (
-                <p className="text-mystery-100 text-sm">Enter code at checkout</p>
+                <p className="text-white/90 text-sm">Enter code at checkout</p>
               )}
             </div>
           </div>
