@@ -1,7 +1,13 @@
 // Test script for Gemini Image Generation API
-// Run with: node test-gemini-image.js
+// Run with: GEMINI_API_KEY=your_key_here node test-gemini-image.js
 
-const GEMINI_API_KEY = 'AIzaSyDGAqkQU8wmkTLbuwu1ONG6iyyRPPPoQds';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+if (!GEMINI_API_KEY) {
+  console.error('❌ Error: GEMINI_API_KEY environment variable not set');
+  console.error('Usage: GEMINI_API_KEY=your_key_here node test-gemini-image.js');
+  process.exit(1);
+}
 
 async function testImageGeneration() {
   console.log('🧪 Testing Gemini Image Generation API...\n');

@@ -38,6 +38,7 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   const [translatedPrompt, setTranslatedPrompt] = useState<string>('');
   const [userCredits, setUserCredits] = useState(0);
   const [useCreditsForAI, setUseCreditsForAI] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -327,6 +328,59 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
     if (regenCount >= 1) return;
     setRegenCount(prev => prev + 1);
     handleGenerateAiImage();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload an image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB');
+      return;
+    }
+
+    setUploadingFile(true);
+    setAiError(null);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentUser.id}-${Date.now()}.${fileExt}`;
+      const filePath = `case-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('case-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('case-media')
+        .getPublicUrl(filePath);
+
+      setFormData({
+        ...formData,
+        imageUrl: publicUrl,
+        isAiGenerated: false
+      });
+      setAiState('CONFIRMED');
+      
+    } catch (error: any) {
+      console.error('File upload error:', error);
+      setAiError(error.message || 'Failed to upload file');
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   const handleLocationPick = (lat: number, lng: number) => {
@@ -619,10 +673,17 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
               {!formData.isAiGenerated && aiState === 'IDLE' ? (
                 <>
                   <div className="flex flex-col md:flex-row gap-4 items-center">
-                    <div className="flex-1 w-full h-32 border-2 border-dashed border-mystery-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-mystery-500 hover:text-mystery-400 cursor-pointer transition-colors">
+                    <label className="flex-1 w-full h-32 border-2 border-dashed border-mystery-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-mystery-500 hover:text-mystery-400 cursor-pointer transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        disabled={uploadingFile}
+                      />
                       <Upload className="w-8 h-8 mb-2" />
-                      <span className="text-sm">Upload File</span>
-                    </div>
+                      <span className="text-sm">{uploadingFile ? 'Uploading...' : 'Upload File'}</span>
+                    </label>
                     <div className="text-gray-500 font-bold">OR</div>
                     <div 
                       onClick={handleGenerateAiImage}
