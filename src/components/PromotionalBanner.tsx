@@ -82,6 +82,7 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
   }, [user]);
 
   const checkActiveCampaigns = async () => {
+    console.log('🔍 Checking for active campaigns...');
     try {
       // Get active campaigns that don't require code or are targeted to user
       const { data, error } = await supabase
@@ -93,25 +94,31 @@ export const PromotionalBanner: React.FC<PromotionalBannerProps> = ({
         .limit(1);
 
       if (error) {
-        console.error('Campaign query error:', error);
+        console.error('❌ Campaign query error:', error);
+        console.error('This is likely an RLS policy issue. Deploy the SQL fix from CAMPAIGN_FIX_STATUS.md');
         return;
       }
 
       if (!data || data.length === 0) {
-        console.log('No active campaigns found');
+        console.log('ℹ️ No active campaigns found');
         return;
       }
 
+      console.log('✅ Found active campaign:', data[0].name);
       const activeCampaign = data[0];
 
       // Check if user is eligible based on target segment
       const isEligible = await checkEligibility(activeCampaign);
+      console.log('🎯 Eligibility check:', isEligible);
       if (isEligible) {
         setCampaign(activeCampaign);
         trackImpression(activeCampaign.id);
+        console.log('🎉 Campaign set and impression tracked!');
+      } else {
+        console.log('⚠️ User not eligible for this campaign');
       }
     } catch (error) {
-      console.error('Error checking campaigns:', error);
+      console.error('❌ Error checking campaigns:', error);
     }
   };
 
