@@ -74,7 +74,7 @@ export const DepositModal: React.FC<DepositModalProps> = ({
 
     let session;
     if (isDonation) {
-      session = await stripeService.createDonationPayment(caseId!, amount, user.id);
+      session = await stripeService.createDonationPayment(caseId!, amount, user.id, caseName);
     } else {
       session = await stripeService.createDepositCheckout(amount, user.id);
     }

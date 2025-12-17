@@ -101,12 +101,15 @@ export const boostService = {
     productName: string
   ): Promise<{ checkoutUrl: string } | null> {
     try {
+      const origin = window.location.origin;
       const { data, error } = await supabase.functions.invoke('create-direct-payment-checkout', {
         body: { 
           amount,
           productName,
           productDescription: `Boost for case ${caseId}`,
           userId,
+          successUrl: `${origin}/payment/success?type=boost&amount=${amount}&case_id=${caseId}`,
+          cancelUrl: `${origin}/cases/${caseId}?boost=canceled`,
           metadata: {
             paymentType: 'boost',
             caseId,

@@ -24,6 +24,7 @@ import { Wallet } from './components/Wallet';
 import { InvestigatorSubscriptionPlans } from './components/InvestigatorSubscriptionPlans';
 import { SubscriptionManagement } from './components/SubscriptionManagement';
 import SubscriptionSuccess from './components/SubscriptionSuccess';
+import PaymentSuccess from './components/PaymentSuccess';
 import { useAnalyticsTracking } from './hooks/useAnalytics';
 
 // Create React Query client
@@ -117,6 +118,9 @@ function AppContent() {
               </ProtectedRoute>
             } 
           />
+
+          {/* Payment Success Page - Universal confirmation for all payment types */}
+          <Route path="/payment/success" element={<PaymentSuccess />} />
 
           {/* Public Profile Route */}
           <Route path="/profile/:username" element={<UserProfile />} />

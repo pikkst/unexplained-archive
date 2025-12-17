@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { amount, productName, productDescription, userId, metadata } = await req.json();
+    const { amount, productName, productDescription, userId, successUrl, cancelUrl, metadata } = await req.json();
 
     if (!amount || !productName || !userId || amount < 1) {
       return new Response(
@@ -43,6 +43,11 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Use provided URLs or fallback to defaults
+    const origin = req.headers.get('origin') || 'https://unexplained-archive.vercel.app';
+    const finalSuccessUrl = successUrl || `${origin}/payment?status=success`;
+    const finalCancelUrl = cancelUrl || `${origin}/payment?status=canceled`;
 
     const session = await createStripeCheckoutSession({
       'mode': 'payment',
@@ -52,8 +57,8 @@ Deno.serve(async (req) => {
       'line_items[0][price_data][product_data][description]': productDescription || `Payment of €${amount.toFixed(2)}`,
       'line_items[0][price_data][unit_amount]': Math.round(amount * 100).toString(),
       'line_items[0][quantity]': '1',
-      'success_url': `${req.headers.get('origin')}/payment?status=success`,
-      'cancel_url': `${req.headers.get('origin')}/payment?status=canceled`,
+      'success_url': finalSuccessUrl,
+      'cancel_url': finalCancelUrl,
       'metadata[userId]': userId,
       'metadata[paymentType]': metadata?.paymentType || 'direct_payment',
       ...metadata,

@@ -23,12 +23,14 @@ export const stripeService = {
   async createDonationPayment(
     caseId: string,
     amount: number,
-    userId: string
+    userId: string,
+    caseName?: string
   ): Promise<CheckoutSession | null> {
     try {
       // Ensure proper URL format for mobile devices
       const origin = window.location.origin || `${window.location.protocol}//${window.location.host}`;
-      const successUrl = `${origin}/cases/${caseId}?donation=success`;
+      const caseNameParam = caseName ? `&case_name=${encodeURIComponent(caseName)}` : '';
+      const successUrl = `${origin}/payment/success?type=donation&amount=${amount}&case_id=${caseId}${caseNameParam}`;
       const cancelUrl = `${origin}/cases/${caseId}?donation=canceled`;
 
       console.log('Creating donation payment:', { caseId, amount, userId, origin });
@@ -109,7 +111,7 @@ export const stripeService = {
         body: {
           planType,
           userId,
-          successUrl: `${window.location.origin}/subscription?success=true`,
+          successUrl: `${window.location.origin}/payment/success?type=subscription`,
           cancelUrl: `${window.location.origin}/subscription?canceled=true`
         }
       });
