@@ -410,6 +410,53 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Footer with Discord */}
+      <footer className="bg-mystery-950 border-t border-mystery-700 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* About */}
+            <div>
+              <h3 className="text-white font-bold text-lg mb-4">Unexplained Archive</h3>
+              <p className="text-gray-400 text-sm">
+                A global platform for documenting and investigating unexplained phenomena. Join our community of truth seekers.
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="text-white font-bold text-lg mb-4">Quick Links</h3>
+              <div className="space-y-2">
+                <Link to="/explore" className="block text-gray-400 hover:text-mystery-400 text-sm transition-colors">Explore Cases</Link>
+                <Link to="/about" className="block text-gray-400 hover:text-mystery-400 text-sm transition-colors">About Us</Link>
+                <Link to="/contact" className="block text-gray-400 hover:text-mystery-400 text-sm transition-colors">Contact</Link>
+                <Link to="/terms" className="block text-gray-400 hover:text-mystery-400 text-sm transition-colors">Terms & Conditions</Link>
+              </div>
+            </div>
+
+            {/* Community */}
+            <div>
+              <h3 className="text-white font-bold text-lg mb-4">Join Our Community</h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Connect with investigators and discuss mysterious cases on Discord
+              </p>
+              <a
+                href="https://discord.gg/YDbn9mhB"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span>Join Discord</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-mystery-800 text-center text-gray-500 text-sm">
+            <p>&copy; {new Date().getFullYear()} Unexplained Archive. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

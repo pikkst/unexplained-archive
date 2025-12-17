@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { CheckCircle, Wallet, CreditCard, Trophy, Gift, ArrowRight } from 'lucide-react';
+import { CheckCircle, Wallet, CreditCard, Trophy, Gift, ArrowRight, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 /**
