@@ -26,6 +26,7 @@ import { SubscriptionManagement } from './components/SubscriptionManagement';
 import SubscriptionSuccess from './components/SubscriptionSuccess';
 import PaymentSuccess from './components/PaymentSuccess';
 import { useAnalyticsTracking } from './hooks/useAnalytics';
+import { caseService } from './services/caseService';
 
 // Create React Query client
 const queryClient = new QueryClient({

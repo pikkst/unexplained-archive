@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Case, User } from '../types';
-import { Upload, Camera, MapPin, Calendar, FileText, DollarSign, Sparkles, RefreshCw, Check, Map as MapIcon, X, Clock, FileSearch, Coins } from 'lucide-react';
+import { Upload, Camera, MapPin, Calendar, FileText, DollarSign, Sparkles, RefreshCw, Check, Map as MapIcon, X, Clock, FileSearch, Coins, Navigation } from 'lucide-react';
 import { CaseMap } from './CaseMap';
 import { caseService } from '../services/caseService';
+import { geocodingService } from '../services/geocodingService';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
 import { CreditsDisplay } from './CreditsDisplay';
@@ -39,6 +40,8 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
   const [userCredits, setUserCredits] = useState(0);
   const [useCreditsForAI, setUseCreditsForAI] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -334,16 +337,19 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    // Validate file type - allow images and videos
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/webm'
+    ];
     if (!allowedTypes.includes(file.type)) {
-      alert('Please upload an image file (JPEG, PNG, GIF, or WebP)');
+      alert('Please upload an image (JPEG, PNG, GIF, WebP) or video file (MP4, MOV, AVI, WebM)');
       return;
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File size must be less than 50MB');
       return;
     }
 
@@ -356,7 +362,7 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
       const filePath = `case-images/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('case-media')
+        .from('media')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -365,7 +371,7 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('case-media')
+        .from('media')
         .getPublicUrl(filePath);
 
       setFormData({
@@ -383,13 +389,66 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
     }
   };
 
-  const handleLocationPick = (lat: number, lng: number) => {
-    setFormData({
-      ...formData,
-      coordinates: { lat, lng },
-      location: `${lat.toFixed(4)}, ${lng.toFixed(4)}`
-    });
-    // Don't close immediately so they can adjust
+  const handleGeocodeAddress = async () => {
+    const address = formData.location.trim();
+    
+    if (!address) {
+      setGeocodeError('Please enter an address');
+      return;
+    }
+
+    // If it looks like coordinates already, parse them
+    if (geocodingService.isCoordinates(address)) {
+      const coords = geocodingService.parseCoordinates(address);
+      if (coords) {
+        setFormData({
+          ...formData,
+          coordinates: coords
+        });
+        setGeocodeError(null);
+        return;
+      }
+    }
+
+    setGeocoding(true);
+    setGeocodeError(null);
+
+    try {
+      const result = await geocodingService.geocodeAddress(address);
+      
+      setFormData({
+        ...formData,
+        location: result.formattedAddress,
+        coordinates: { lat: result.lat, lng: result.lng }
+      });
+
+      // Show success feedback
+      setGeocodeError(null);
+    } catch (error: any) {
+      console.error('Geocoding error:', error);
+      setGeocodeError(error.message || 'Could not find location. Try manual pin placement.');
+    } finally {
+      setGeocoding(false);
+    }
+  };
+
+  const handleLocationPick = async (lat: number, lng: number) => {
+    // Try to reverse geocode the coordinates to get a readable address
+    try {
+      const address = await geocodingService.reverseGeocode(lat, lng);
+      setFormData({
+        ...formData,
+        coordinates: { lat, lng },
+        location: address
+      });
+    } catch (error) {
+      // If reverse geocoding fails, just use coordinates
+      setFormData({
+        ...formData,
+        coordinates: { lat, lng },
+        location: `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -553,19 +612,46 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
                     required
                     type="text"
                     value={formData.location}
-                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    onChange={(e) => {
+                      setFormData({...formData, location: e.target.value});
+                      setGeocodeError(null);
+                    }}
                     className="flex-1 bg-mystery-900 border border-mystery-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-mystery-500 focus:border-transparent outline-none"
-                    placeholder="City or Coordinates"
+                    placeholder="Enter address or city (e.g., Tallinn, Estonia)"
                   />
+                  <button 
+                    type="button"
+                    onClick={handleGeocodeAddress}
+                    disabled={geocoding || !formData.location.trim()}
+                    className="p-3 bg-mystery-700 hover:bg-mystery-600 rounded-lg text-white border border-mystery-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Find Location"
+                  >
+                    {geocoding ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Navigation className="w-5 h-5" />
+                    )}
+                  </button>
                   <button 
                     type="button"
                     onClick={() => setShowMapPicker(true)}
                     className="p-3 bg-mystery-700 hover:bg-mystery-600 rounded-lg text-white border border-mystery-600"
-                    title="Pin on Map"
+                    title="Manual Pin on Map"
                   >
                     <MapIcon className="w-5 h-5" />
                   </button>
               </div>
+              {geocodeError && (
+                <p className="text-xs text-red-400 mt-1">{geocodeError}</p>
+              )}
+              {formData.coordinates.lat !== 0 && formData.coordinates.lng !== 0 && (
+                <p className="text-xs text-green-400 mt-1 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Location set: {formData.coordinates.lat.toFixed(4)}, {formData.coordinates.lng.toFixed(4)}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Enter address for cities, or use manual pin for remote areas
+              </p>
             </div>
 
             <div>
@@ -676,13 +762,14 @@ export const SubmitCaseForm: React.FC<SubmitCaseFormProps> = ({ currentUser, onS
                     <label className="flex-1 w-full h-32 border-2 border-dashed border-mystery-600 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-mystery-500 hover:text-mystery-400 cursor-pointer transition-colors">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         onChange={handleFileUpload}
                         className="hidden"
                         disabled={uploadingFile}
                       />
                       <Upload className="w-8 h-8 mb-2" />
-                      <span className="text-sm">{uploadingFile ? 'Uploading...' : 'Upload File'}</span>
+                      <span className="text-sm">{uploadingFile ? 'Uploading...' : 'Upload Image/Video'}</span>
+                      <span className="text-xs text-gray-600 mt-1">Max 50MB</span>
                     </label>
                     <div className="text-gray-500 font-bold">OR</div>
                     <div 

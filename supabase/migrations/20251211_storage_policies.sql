@@ -37,13 +37,13 @@ USING (
   AND (storage.foldername(name))[1] = 'evidence'
 );
 
--- Also ensure case-media uploads work (for case submissions)
+-- Also ensure case-media and case-images uploads work (for case submissions)
 CREATE POLICY "Authenticated users can upload case media"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
   bucket_id = 'media' 
-  AND (storage.foldername(name))[1] = 'case-media'
+  AND ((storage.foldername(name))[1] = 'case-media' OR (storage.foldername(name))[1] = 'case-images')
 );
 
 CREATE POLICY "Public can view case media"
@@ -51,7 +51,7 @@ ON storage.objects FOR SELECT
 TO public
 USING (
   bucket_id = 'media' 
-  AND (storage.foldername(name))[1] = 'case-media'
+  AND ((storage.foldername(name))[1] = 'case-media' OR (storage.foldername(name))[1] = 'case-images')
 );
 
 COMMENT ON POLICY "Authenticated users can upload evidence files" ON storage.objects IS 
