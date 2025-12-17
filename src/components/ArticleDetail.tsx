@@ -43,11 +43,17 @@ export const ArticleDetail: React.FC = () => {
 
       setArticle(data);
 
-      // Increment view count
-      await supabase
-        .from('blog_articles')
-        .update({ views: (data.views || 0) + 1 })
-        .eq('id', data.id);
+      // Increment view count using RPC for atomic operation (with fallback)
+      const { error: viewError } = await supabase
+        .rpc('increment_article_views', { article_id: data.id });
+      
+      if (viewError) {
+        // Fallback to simple update if RPC doesn't exist
+        await supabase
+          .from('blog_articles')
+          .update({ views: (data.views || 0) + 1 })
+          .eq('id', data.id);
+      }
 
     } catch (error) {
       console.error('Failed to load article:', error);
@@ -60,15 +66,25 @@ export const ArticleDetail: React.FC = () => {
     if (!article || liked) return;
 
     try {
-      const newLikes = (article.likes || 0) + 1;
-      const { error } = await supabase
-        .from('blog_articles')
-        .update({ likes: newLikes })
-        .eq('id', article.id);
+      // Use Supabase RPC for atomic increment to avoid race conditions
+      const { data, error } = await supabase
+        .rpc('increment_article_likes', { article_id: article.id });
 
-      if (error) throw error;
-
-      setArticle({ ...article, likes: newLikes });
+      if (error) {
+        // Fallback to simple update if RPC doesn't exist
+        const newLikes = (article.likes || 0) + 1;
+        const { error: updateError } = await supabase
+          .from('blog_articles')
+          .update({ likes: newLikes })
+          .eq('id', article.id);
+        
+        if (updateError) throw updateError;
+        setArticle({ ...article, likes: newLikes });
+      } else {
+        // Use the returned value from RPC if available
+        setArticle({ ...article, likes: data || (article.likes || 0) + 1 });
+      }
+      
       setLiked(true);
     } catch (error) {
       console.error('Failed to like article:', error);
