@@ -11,6 +11,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { SubmitCaseForm } from './components/SubmitCaseForm';
 import { ExploreCases } from './components/ExploreCases';
 import { CaseDetail } from './components/CaseDetail';
+import { ArticleDetail } from './components/ArticleDetail';
 import { DonationPage } from './components/DonationPage';
 import Forum from './components/Forum';
 import ThreadView from './components/ThreadView';
@@ -90,6 +91,7 @@ function AppContent() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/explore" element={<ExploreCases />} />
           <Route path="/cases/:id" element={<CaseDetail />} />
+          <Route path="/articles/:slug" element={<ArticleDetail />} />
           <Route path="/map" element={
             <div className="w-full h-[calc(100vh-64px)] bg-mystery-900">
               <CaseMap />

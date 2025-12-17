@@ -2340,6 +2340,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
                             )}
                           </div>
                           <div className="flex gap-2">
+                            <a
+                              href={`/articles/${article.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition-colors"
+                            >
+                              View
+                            </a>
                             <button
                               onClick={() => {
                                 setEditingArticleId(article.id);
