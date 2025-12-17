@@ -3,6 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "license": "UNLICENSED",
+  "author": "Unexplained Archive <huntersest@gemail.com>",
+  "description": "Proprietary platform for documenting unexplained phenomena - All Rights Reserved",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pikkst/unexplained-archive.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run copy:404 && npm run copy:favicon",

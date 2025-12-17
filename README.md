@@ -1,5 +1,12 @@
 # 🌟 Unexplained Archive
 
+> **⚠️ PROPRIETARY SOFTWARE - ALL RIGHTS RESERVED**  
+> **© 2025 Unexplained Archive. This project is protected by copyright law.**  
+> **See [LICENSE](LICENSE) and [COPYRIGHT_NOTICE.md](COPYRIGHT_NOTICE.md) for details.**  
+> **❌ NOT OPEN SOURCE - No usage, copying, or redistribution permitted.**
+
+---
+
 A global community platform for documenting, investigating, and exploring unexplained phenomena. From UFO sightings and extraterrestrial encounters to paranormal events and mysterious occurrences - share your experiences and connect with verified investigators worldwide.
 
 **🚀 Live**: [https://pikkst.github.io/unexplained-archive/](https://pikkst.github.io/unexplained-archive/)
@@ -25,12 +32,15 @@ A global community platform for documenting, investigating, and exploring unexpl
 ### For Developers
 - 🔗 **API Access** - RESTful API for third-party integrations
 - 📚 **Webhooks** - Real-time case updates and notifications
-- 🛠️ **Open Source** - MIT licensed, extensible architecture
-- 🔐 **Secure Backend** - Supabase PostgreSQL with Row Level Security
+-  **Secure Backend** - Supabase PostgreSQL with Row Level Security
 
 ---
 
 ## 🚀 Quick Start
+
+> **⚠️ NOTICE**: This section is for educational/viewing purposes only.  
+> **You may NOT deploy, use, or run this software for any purpose.**  
+> **See [COPYRIGHT_NOTICE.md](COPYRIGHT_NOTICE.md) for full details.**
 
 ### Prerequisites
 - Node.js 18+ and npm
@@ -241,7 +251,27 @@ MIT License - see [LICENSE](LICENSE) for details
 
 ---
 
-## 📊 Statistics
+## � License & Copyright
+
+**© 2025 Unexplained Archive. All Rights Reserved.**
+
+This project is **PROPRIETARY SOFTWARE** and is **NOT OPEN SOURCE**.
+
+- ❌ **No Usage Rights** - You may not use this code for any purpose
+- ❌ **No Copying** - You may not copy or redistribute this code
+- ❌ **No Derivatives** - You may not create similar projects based on this
+- ❌ **No Commercial Use** - Strictly prohibited
+- ✅ **View Only** - You may view the code for educational purposes
+
+**Full Legal Details:**
+- [LICENSE](LICENSE) - Complete legal terms
+- [COPYRIGHT_NOTICE.md](COPYRIGHT_NOTICE.md) - Detailed protection notice
+
+**Violation of this copyright will result in legal action.**
+
+---
+
+## �📊 Statistics
 
 - **Platform Age**: Production (Dec 2024)
 - **Total Users**: Actively growing
@@ -282,6 +312,20 @@ MIT License - see [LICENSE](LICENSE) for details
 - Third-party integrations
 - Real-time collaboration tools
 - Machine learning case clustering
+
+---
+
+## ⚖️ Legal & Disclaimer
+
+**PROPRIETARY SOFTWARE - ALL RIGHTS RESERVED**
+
+This software is the exclusive property of its copyright holder. Any unauthorized use, copying, modification, distribution, or deployment is strictly prohibited and will result in legal action.
+
+For licensing inquiries: huntersest@gmail.com
+
+---
+
+**Built with 🔬 for the unexplained research community**
 - Public API with rate limiting
 
 ---
