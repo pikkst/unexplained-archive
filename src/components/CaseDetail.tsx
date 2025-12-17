@@ -251,7 +251,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
         // Fetch cases with same category
         const { data: sameCategoryCases, error } = await supabase
           .from('cases')
-          .select('id, title, description, category, status, media_urls, latitude, longitude, incident_date, created_at')
+          .select('id, title, description, category, status, media_urls, latitude, longitude, date_occurred, created_at')
           .eq('category', caseData.category)
           .neq('id', caseData.id)
           .limit(20);
@@ -513,7 +513,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
         .from('case_theories')
         .select(`
           *,
-          profiles (
+          profiles!case_theories_user_id_fkey (
             id,
             username,
             avatar_url
@@ -2453,7 +2453,7 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
                         {similarCase.status}
                       </span>
                       <span className="text-gray-500">
-                        {new Date(similarCase.incident_date || similarCase.created_at).toLocaleDateString()}
+                        {new Date(similarCase.date_occurred || similarCase.created_at).toLocaleDateString()}
                       </span>
                     </div>
                   </div>
