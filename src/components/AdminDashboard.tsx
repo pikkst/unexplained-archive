@@ -31,9 +31,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const [backgroundChecks, setBackgroundChecks] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [selectedUserForCredits, setSelectedUserForCredits] = useState<any | null>(null);
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditReason, setCreditReason] = useState('');
+  const [awardingCredits, setAwardingCredits] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions' | 'campaigns'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions' | 'campaigns' | 'users'>('overview');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [stats, setStats] = useState({
   totalCases: 0,
@@ -119,6 +126,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     if (activeTab === 'content') {
       loadForumPosts();
     }
+    if (activeTab === 'users') {
+      loadUsers();
+    }
   }, [activeTab]);
   
   // Auto-refresh analytics every 30 seconds when on analytics tab
@@ -134,6 +144,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
       return () => clearInterval(interval);
     }
   }, [activeTab, autoRefreshEnabled, isLoadingAnalytics]);
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, email, avatar_url, role, credits, lifetime_credits_earned, lifetime_credits_spent, reputation, is_pro_member, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUsers(data || []);
+      setFilteredUsers(data || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const loadAnalytics = async () => {
     if (isLoadingAnalytics) return; // Prevent concurrent calls
@@ -877,6 +902,81 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
     }
   };
 
+  const filterUsers = () => {
+    if (!userSearchTerm.trim()) {
+      setFilteredUsers(users);
+      return;
+    }
+
+    const searchLower = userSearchTerm.toLowerCase();
+    const filtered = users.filter(user => 
+      (user.username?.toLowerCase().includes(searchLower)) ||
+      (user.full_name?.toLowerCase().includes(searchLower)) ||
+      (user.email?.toLowerCase().includes(searchLower)) ||
+      (user.id?.toLowerCase().includes(searchLower))
+    );
+    setFilteredUsers(filtered);
+  };
+
+  useEffect(() => {
+    filterUsers();
+  }, [userSearchTerm, users]);
+
+  const handleAwardCredits = async () => {
+    if (!selectedUserForCredits || !creditAmount || !creditReason.trim()) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    const amount = parseInt(creditAmount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid positive amount');
+      return;
+    }
+
+    if (!confirm(`Award ${amount} credits to ${selectedUserForCredits.username}?\n\nReason: ${creditReason}`)) {
+      return;
+    }
+
+    setAwardingCredits(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const adminId = userData.user?.id;
+
+      if (!adminId) {
+        throw new Error('Admin ID not found');
+      }
+
+      const { data, error } = await supabase.rpc('admin_grant_credits', {
+        p_admin_id: adminId,
+        p_user_id: selectedUserForCredits.id,
+        p_amount: amount,
+        p_reason: creditReason
+      });
+
+      if (error) throw error;
+      
+      if (data && !data.success) {
+        throw new Error(data.error || 'Failed to award credits');
+      }
+
+      alert(`✅ Successfully awarded ${amount} credits to ${selectedUserForCredits.username}!`);
+      
+      // Reset form
+      setSelectedUserForCredits(null);
+      setCreditAmount('');
+      setCreditReason('');
+      
+      // Reload users to show updated credit balance
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error awarding credits:', error);
+      alert('Failed to award credits: ' + (error.message || 'Unknown error'));
+    } finally {
+      setAwardingCredits(false);
+    }
+  };
+
   const filterTransactions = () => {
     let filtered = [...transactions];
     
@@ -1104,6 +1204,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             Campaigns
           </div>
         </button>
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'users'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Users Management
+          </div>
+        </button>
       </div>
 
       {/* Mobile Navigation */}
@@ -1141,6 +1254,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
               )}
               {activeTab === 'subscriptions' && (
                 <><Users className="w-5 h-5" />Subscriptions & Groups</>
+              )}
+              {activeTab === 'campaigns' && (
+                <><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                </svg>Campaigns</>
+              )}
+              {activeTab === 'users' && (
+                <><Users className="w-5 h-5" />Users Management</>
               )}
             </div>
             <ChevronDown className={`w-5 h-5 transition-transform ${
@@ -1207,12 +1328,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
               </button>
               <button
                 onClick={() => { setActiveTab('subscriptions'); setShowMobileMenu(false); }}
-                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors rounded-b-lg ${
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
                   activeTab === 'subscriptions' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
                 }`}
               >
                 <Users className="w-5 h-5" />
                 Subscriptions & Groups
+              </button>
+              <button
+                onClick={() => { setActiveTab('campaigns'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
+                  activeTab === 'campaigns' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                </svg>
+                Campaigns
+              </button>
+              <button
+                onClick={() => { setActiveTab('users'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors rounded-b-lg ${
+                  activeTab === 'users' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                Users Management
               </button>
             </div>
           )}
@@ -2800,7 +2941,221 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
           {activeTab === 'campaigns' && (
             <CampaignManager />
           )}
+
+          {/* USERS MANAGEMENT TAB */}
+          {activeTab === 'users' && (
+            <div className="space-y-6">
+              <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6">
+                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Users className="w-7 h-7 text-mystery-400" />
+                  Users Management
+                </h2>
+
+                {/* Search Bar */}
+                <div className="mb-6">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search users by username, name, email, or ID..."
+                      value={userSearchTerm}
+                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-mystery-900 border border-mystery-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-mystery-400"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Found {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+
+                {/* Users List */}
+                <div className="space-y-4">
+                  {filteredUsers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                      <p className="text-gray-400">No users found</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredUsers.map((user) => (
+                        <div key={user.id} className="bg-mystery-900/50 rounded-lg border border-mystery-700 p-4 hover:border-mystery-600 transition-colors">
+                          <div className="flex items-start gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {user.avatar_url ? (
+                                <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
+                              ) : (
+                                <Users className="w-6 h-6 text-gray-500" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-white truncate">{user.username || 'Anonymous'}</h3>
+                              <p className="text-xs text-gray-400 truncate">{user.full_name || 'No name'}</p>
+                              <p className="text-xs text-gray-500 truncate mt-1">{user.email || 'No email'}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400">Role:</span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                user.role === 'admin' ? 'bg-red-500/20 text-red-400' :
+                                user.role === 'investigator' ? 'bg-blue-500/20 text-blue-400' :
+                                'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {user.role || 'user'}
+                              </span>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400">Credits:</span>
+                              <span className="text-mystery-300 font-semibold">{user.credits || 0}</span>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-400">Reputation:</span>
+                              <span className="text-yellow-400">⭐ {user.reputation || 0}</span>
+                            </div>
+                            
+                            {user.is_pro_member && (
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 text-xs font-bold rounded-full">
+                                  ✨ PRO Member
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="text-xs text-gray-500 pt-2 border-t border-mystery-700">
+                              Joined: {new Date(user.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setSelectedUserForCredits(user)}
+                            className="w-full px-4 py-2 bg-mystery-600 hover:bg-mystery-500 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                            Award Credits
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </>
+      )}
+
+      {/* Credit Award Modal */}
+      {selectedUserForCredits && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+          <div className="bg-mystery-800 rounded-xl border border-mystery-700 p-6 sm:p-8 w-full max-w-md text-white">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <DollarSign className="w-6 h-6 text-mystery-400" />
+                Award Credits
+              </h3>
+              <button
+                onClick={() => {
+                  setSelectedUserForCredits(null);
+                  setCreditAmount('');
+                  setCreditReason('');
+                }}
+                className="text-gray-400 hover:text-white text-3xl leading-none"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="bg-mystery-900/50 rounded-lg p-4 border border-mystery-700">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-full bg-mystery-700 flex items-center justify-center overflow-hidden">
+                    {selectedUserForCredits.avatar_url ? (
+                      <img src={selectedUserForCredits.avatar_url} alt={selectedUserForCredits.username} className="w-full h-full object-cover" />
+                    ) : (
+                      <Users className="w-5 h-5 text-gray-500" />
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white">{selectedUserForCredits.username || 'Anonymous'}</h4>
+                    <p className="text-sm text-gray-400">{selectedUserForCredits.full_name || 'No name'}</p>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-400">
+                  Current credits: <span className="text-mystery-300 font-semibold">{selectedUserForCredits.credits || 0}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Credit Amount *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(e.target.value)}
+                  placeholder="Enter amount (e.g., 50)"
+                  className="w-full px-4 py-2 bg-mystery-900 border border-mystery-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-mystery-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Reason for Award *
+                </label>
+                <textarea
+                  value={creditReason}
+                  onChange={(e) => setCreditReason(e.target.value)}
+                  placeholder="Why are you awarding credits? (e.g., Outstanding investigation work, Platform issue compensation, Community contribution)"
+                  rows={4}
+                  className="w-full px-4 py-2 bg-mystery-900 border border-mystery-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-mystery-400 resize-none"
+                />
+              </div>
+
+              {creditAmount && !isNaN(parseInt(creditAmount)) && parseInt(creditAmount) > 0 && (
+                <div className="bg-mystery-500/10 border border-mystery-500/30 rounded-lg p-3">
+                  <p className="text-sm text-mystery-300">
+                    New balance will be: <span className="font-bold">{(selectedUserForCredits.credits || 0) + parseInt(creditAmount)}</span> credits
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setSelectedUserForCredits(null);
+                  setCreditAmount('');
+                  setCreditReason('');
+                }}
+                className="flex-1 px-4 py-2 bg-mystery-700 hover:bg-mystery-600 text-white font-medium rounded-lg transition-colors"
+                disabled={awardingCredits}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAwardCredits}
+                disabled={awardingCredits || !creditAmount || !creditReason.trim()}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {awardingCredits ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Awarding...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Award Credits
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {selectedTx && (
