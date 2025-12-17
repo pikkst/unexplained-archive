@@ -16,7 +16,7 @@ import { isTeamLeader, getCaseTeam } from '../services/teamService';
 import { caseService } from '../services/caseService';
 import { boostService } from '../services/boostService';
 import type { Database } from '../lib/supabase';
-import { MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Shield, DollarSign, ThumbsUp, ThumbsDown, Star, MessageSquare, Send, Sparkles, Scale, AlertTriangle, FileText, Languages, Globe, Bell, BellOff, Eye, Zap, MapIcon, Trash2, Edit2, Reply, X, Check, Users, Lightbulb, TrendingUp as TrendingUpIcon } from 'lucide-react';
+import { MapPin, Calendar, User as UserIcon, AlertCircle, CheckCircle, Shield, DollarSign, ThumbsUp, ThumbsDown, Star, MessageSquare, Send, Sparkles, Scale, AlertTriangle, FileText, Languages, Globe, Bell, BellOff, Eye, Zap, MapIcon, Trash2, Edit2, Reply, X, Check, Users, Lightbulb, TrendingUp as TrendingUpIcon, Share2 } from 'lucide-react';
 
 // Define types from supabase schema
 type Case = Database['public']['Tables']['cases']['Row'];
@@ -777,6 +777,12 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
     }
   };
 
+  const handleShareOnFacebook = () => {
+    const caseUrl = `${window.location.origin}/cases/${caseData.id}`;
+    const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(caseUrl)}`;
+    window.open(facebookShareUrl, '_blank', 'width=600,height=400');
+  };
+
   const handleTranslateCase = async () => {
     if (!canTranslate || isTranslating) return;
     
@@ -1255,8 +1261,8 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
             </div>
 
             <div className="p-6 md:p-8 space-y-6">
-              {/* Follow and Save Buttons */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Follow, Save, Export, and Share Buttons */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Follow Case Button */}
                 <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
                   <div className="flex items-center gap-3">
@@ -1315,6 +1321,24 @@ export const CaseDetail: React.FC<CaseDetailProps> = (props) => {
 
                 {/* Export Case Button */}
                 <CaseExportButton caseData={caseData} />
+
+                {/* Share on Facebook Button */}
+                <div className="flex items-center justify-between bg-mystery-900/50 border border-mystery-600 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <Share2 className="w-5 h-5 text-blue-400" />
+                    <div>
+                      <h4 className="text-white font-bold text-sm">Share Case</h4>
+                      <p className="text-xs text-gray-400">Share on Facebook</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleShareOnFacebook}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    Share
+                  </button>
+                </div>
               </div>
 
               {/* Translation Panel for Investigators/Admins */}
