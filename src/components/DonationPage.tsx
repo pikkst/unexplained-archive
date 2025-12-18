@@ -85,8 +85,10 @@ export const DonationPage: React.FC<DonationPageProps> = ({ onDonateToCase }) =>
         setSuccess(`Thank you for donating €${amount.toFixed(2)} to support the Unexplained Archive platform!`);
       } else {
         // Case donation - goes to reward pool
-        const success = await walletService.donateToCase(user.id, targetCaseId, amount);
-        if (!success) throw new Error('Donation failed');
+        const result = await walletService.donateToCase(user.id, targetCaseId, amount);
+        if (!result.success) {
+          throw new Error(result.error || 'Donation failed');
+        }
         
         setSuccess(`Thank you! €${amount.toFixed(2)} has been added to the reward pool for the selected case.`);
         onDonateToCase(targetCaseId, amount);
