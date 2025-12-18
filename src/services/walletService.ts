@@ -194,8 +194,9 @@ export const walletService = {
       .eq('user_id', userId)
       .single();
 
+    // If no limits are set for user, allow transaction
     if (error || !data) {
-      return { allowed: false, reason: 'Unable to verify limits' };
+      return { allowed: true };
     }
 
     // Check daily limit
