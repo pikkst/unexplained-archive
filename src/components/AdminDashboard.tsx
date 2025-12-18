@@ -1100,10 +1100,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
 
       {/* Tab Navigation */}
       {/* Desktop Navigation */}
-      <div className="hidden md:flex gap-2 mb-8 border-b border-mystery-700">
+      <div className="hidden md:flex gap-2 mb-8 border-b border-mystery-700 overflow-x-auto scrollbar-thin scrollbar-thumb-mystery-600 scrollbar-track-mystery-800">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'overview'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1116,7 +1116,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'analytics'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1129,7 +1129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('content')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'content'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1142,7 +1142,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('investigators')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'investigators'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1160,7 +1160,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('verifications')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'verifications'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1178,7 +1178,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('subscriptions')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'subscriptions'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1191,7 +1191,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('campaigns')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'campaigns'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1206,7 +1206,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('users')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'users'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
@@ -1219,7 +1219,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
         </button>
         <button
           onClick={() => setActiveTab('payments')}
-          className={`px-6 py-3 font-medium transition-colors ${
+          className={`px-6 py-3 font-medium transition-colors whitespace-nowrap ${
             activeTab === 'payments'
               ? 'text-mystery-400 border-b-2 border-mystery-400'
               : 'text-gray-400 hover:text-white'
