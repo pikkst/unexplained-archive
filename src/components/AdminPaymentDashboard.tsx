@@ -39,14 +39,14 @@ export const AdminPaymentDashboard: React.FC = () => {
     try {
       // Load dashboard stats
       const { data: statsData } = await supabase
-        .from('admin_payment_dashboard')
+        .from('admin_payment_dashboard' as any)
         .select('*')
         .single();
 
       if (statsData) setStats(statsData);
 
       // Load failed webhooks
-      const { data: failuresData } = await supabase.rpc('get_failed_webhooks', {
+      const { data: failuresData } = await (supabase.rpc as any)('get_failed_webhooks', {
         p_limit: 20,
         p_offset: 0,
       });
@@ -84,7 +84,7 @@ export const AdminPaymentDashboard: React.FC = () => {
 
   const handleRunReconciliation = async () => {
     try {
-      const { data, error } = await supabase.rpc('perform_balance_reconciliation');
+      const { data, error } = await (supabase.rpc as any)('perform_balance_reconciliation');
 
       if (error) throw error;
 

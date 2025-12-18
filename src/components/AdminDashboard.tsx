@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign, ChevronDown, Activity } from 'lucide-react';
+import { Shield, AlertCircle, Users, Database, Scale, Gavel, FileText, ArrowRightLeft, TrendingUp, TrendingDown, BarChart3, Globe, Search, Newspaper, Eye, MousePointer, CheckCircle, X, DollarSign, ChevronDown, Activity, CreditCard } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Case } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
@@ -8,6 +8,7 @@ import { MassNotificationPanel } from './MassNotificationPanel';
 import { SubscriptionGroupNotifications } from './SubscriptionGroupNotifications';
 import WorldMapVisualization from './WorldMapVisualization';
 import { CampaignManager } from './CampaignManager';
+import { AdminPaymentDashboard } from './AdminPaymentDashboard';
 
 const COLORS = ['#6366f1', '#22d3ee', '#a855f7', '#94a3b8', '#f59e0b', '#10b981'];
 
@@ -40,7 +41,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
   const [awardingCredits, setAwardingCredits] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions' | 'campaigns' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics' | 'content' | 'investigators' | 'verifications' | 'subscriptions' | 'campaigns' | 'payments' | 'users'>('overview');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [stats, setStats] = useState({
   totalCases: 0,
@@ -1216,6 +1217,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             Users Management
           </div>
         </button>
+        <button
+          onClick={() => setActiveTab('payments')}
+          className={`px-6 py-3 font-medium transition-colors ${
+            activeTab === 'payments'
+              ? 'text-mystery-400 border-b-2 border-mystery-400'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Payment Monitoring
+          </div>
+        </button>
       </div>
 
       {/* Mobile Navigation */}
@@ -1261,6 +1275,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
               )}
               {activeTab === 'users' && (
                 <><Users className="w-5 h-5" />Users Management</>
+              )}
+              {activeTab === 'payments' && (
+                <><CreditCard className="w-5 h-5" />Payment Monitoring</>
               )}
             </div>
             <ChevronDown className={`w-5 h-5 transition-transform ${
@@ -1347,12 +1364,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
               </button>
               <button
                 onClick={() => { setActiveTab('users'); setShowMobileMenu(false); }}
-                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors rounded-b-lg ${
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors ${
                   activeTab === 'users' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
                 }`}
               >
                 <Users className="w-5 h-5" />
                 Users Management
+              </button>
+              <button
+                onClick={() => { setActiveTab('payments'); setShowMobileMenu(false); }}
+                className={`w-full px-4 py-3 text-left flex items-center gap-2 hover:bg-mystery-700 transition-colors rounded-b-lg ${
+                  activeTab === 'payments' ? 'text-mystery-400 bg-mystery-700/50' : 'text-white'
+                }`}
+              >
+                <CreditCard className="w-5 h-5" />
+                Payment Monitoring
               </button>
             </div>
           )}
@@ -3230,6 +3256,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ cases: initialCa
             </div>
           </div>
         </div>
+      )}
+
+      {/* PAYMENT MONITORING TAB */}
+      {activeTab === 'payments' && (
+        <AdminPaymentDashboard />
       )}
     </div>
   );
