@@ -83,15 +83,13 @@ export const walletService = {
   // Deposit money (creates pending transaction for Stripe)
   async createDepositIntent(userId: string, amount: number): Promise<{ sessionId: string; checkoutUrl: string } | null> {
     try {
-      // Call Supabase Edge Function to create Stripe Checkout Session
-      // Using 'create-donation-checkout' which handles both donations and deposits
-      const { data, error } = await supabase.functions.invoke('create-donation-checkout', {
+      // Call Supabase Edge Function to create Stripe Checkout Session for wallet deposits
+      const { data, error } = await supabase.functions.invoke('create-deposit-checkout', {
         body: {
           userId,
           amount,
-          caseId: 'wallet_deposit', // Special ID for wallet deposits
-          successUrl: `${window.location.origin}/unexplained-archive/payment/success?type=deposit&amount=${amount}`,
-          cancelUrl: `${window.location.origin}/unexplained-archive/wallet?deposit=canceled`
+          successUrl: `${window.location.origin}/payment/success?type=deposit&amount=${amount}`,
+          cancelUrl: `${window.location.origin}/wallet?deposit=canceled`
         }
       });
 

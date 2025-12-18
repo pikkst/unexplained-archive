@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    const { amount, userId } = await req.json();
+    const { amount, userId, successUrl, cancelUrl } = await req.json();
 
     if (!amount || !userId || amount < 5) {
       return new Response(JSON.stringify({ error: 'User ID and a minimum amount of €5 are required.' }), {
@@ -36,6 +36,11 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Use provided URLs or fallback to defaults
+    const origin = req.headers.get('origin') || 'https://unexplained-archive.vercel.app';
+    const finalSuccessUrl = successUrl || `${origin}/wallet?deposit=success`;
+    const finalCancelUrl = cancelUrl || `${origin}/wallet?deposit=canceled`;
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -99,8 +104,8 @@ Deno.serve(async (req) => {
             description: `Add €${amount.toFixed(2)} to your Unexplained Archive wallet.`,
           },
           unit_amount: Math.round(amount * 100), // Amount in cents
-        },
-        quantity: 1,
+        },finalSuccessUrl,
+      cancel_url: finalCancelUrl
       }],
       mode: 'payment',
       customer: customerId, // Use verified customer ID
